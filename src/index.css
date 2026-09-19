@@ -1,0 +1,114 @@
+:root {
+  /* 濃紺・高コントラスト系テーマ（老眼対応を優先。他のギンザケ関連アプリのクリーム系とは異なる意図的な例外） */
+  --c-bg: #0b1b2b;       /* メイン背景 */
+  --c-bg-2: #132a40;     /* サブ背景（カード等） */
+  --c-bg-3: #1c3a56;     /* 選択中・ホバー */
+  --c-text: #f5f7fa;     /* メインテキスト */
+  --c-text-2: #c9d6e3;   /* サブテキスト */
+  --c-text-3: #8fa3b8;   /* 補足テキスト・プレースホルダ */
+  --c-border: #24405c;
+  --c-border-2: #2f5170;
+  --c-accent: #4fc3f7;   /* アクセント（明るい水色） */
+  --c-danger: #ff6b6b;
+  --c-danger-bg: #3a1f1f;
+  --c-ok: #69db7c;
+  --c-ok-bg: #16321c;
+  --c-warn: #ffd166;
+  --c-warn-bg: #3a2e12;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /* パターンA基準：ここを変えるだけでは全体に効かないため、
+     各コンポーネントの文字サイズは.jsx側でpx直接指定する */
+  font-size: 22px;
+}
+
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+@keyframes busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ナビゲーションメニュー：PCは横並び、スマホは３本線タップでプルダウン */
+.nav-hamburger-btn {
+  display: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .nav-hamburger-btn {
+    display: inline-flex;
+  }
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding: 10px 16px 14px;
+    background: var(--c-bg-2);
+    border-bottom: 1px solid var(--c-border);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  }
+  .nav-links.nav-links-open {
+    display: flex;
+  }
+}
+
+/* 予定表の印刷（A4縦・ファックス送信を想定） */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #666 !important;
+  }
+  .print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 15mm;
+  }
+}
