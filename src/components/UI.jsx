@@ -10,6 +10,12 @@ const STATUS_COLORS = {
   保留: { bg: 'var(--c-warn-bg)', text: 'var(--c-warn)' },
 };
 
+// 色帯（第2層の左端など）に、バッジと同じ色系統を使うためのヘルパー
+export function statusAccentColor(status) {
+  const c = STATUS_COLORS[status] || STATUS_COLORS['予定'];
+  return c.text;
+}
+
 export function StatusBadge({ status }) {
   const c = STATUS_COLORS[status] || STATUS_COLORS['予定'];
   return (

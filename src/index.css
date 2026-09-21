@@ -4,8 +4,8 @@
   --c-bg-2: #132a40;     /* サブ背景（カード等） */
   --c-bg-3: #1c3a56;     /* 選択中・ホバー */
   --c-text: #f5f7fa;     /* メインテキスト */
-  --c-text-2: #c9d6e3;   /* サブテキスト */
-  --c-text-3: #8fa3b8;   /* 補足テキスト・プレースホルダ */
+  --c-text-2: #dbe6ef;   /* サブテキスト（★2026-09-19更新：視認性優先のため大幅に明るく） */
+  --c-text-3: #b7c7d6;   /* 補足テキスト・プレースホルダ（★2026-09-19更新：同上） */
   --c-border: #24405c;
   --c-border-2: #2f5170;
   --c-accent: #4fc3f7;   /* アクセント（明るい水色） */
@@ -33,6 +33,10 @@ body {
   color: var(--c-text);
   font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* ★2026-09-19追加：老眼対応・視認性を最優先するため、画面全体を一律で拡大する。
+     各コンポーネント個別のpx指定を1つずつ直すのではなく、ここでまとめて底上げする。
+     zoomはChrome系ブラウザ（Android Chrome含む）で有効。Firefoxでは効かない点に注意 */
+  zoom: 1.2;
 }
 
 #root {

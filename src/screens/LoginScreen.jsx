@@ -70,10 +70,10 @@ export default function LoginScreen() {
         <PinPad value={pin} onChange={setPin} />
         <ErrorMsg message={loginError} />
         <div style={{ display: 'flex', gap: 12, marginTop: 24, width: '100%', maxWidth: 300 }}>
-          <BusyButton variant="ghost" onClick={backToTiles} fullWidth>
+          <BusyButton variant="ghost" onClick={backToTiles} style={{ flex: 1 }}>
             戻る
           </BusyButton>
-          <BusyButton variant="primary" onClick={handleLogin} fullWidth>
+          <BusyButton variant="primary" onClick={handleLogin} style={{ flex: 1 }}>
             ログイン
           </BusyButton>
         </div>
@@ -133,8 +133,11 @@ function CenterScreen({ children }) {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
+        justifyContent: 'flex-start',
+        paddingTop: 32,
+        paddingLeft: 24,
+        paddingRight: 24,
+        paddingBottom: 24,
         background: 'var(--c-bg)',
         color: 'var(--c-text)',
       }}

@@ -22,6 +22,26 @@ export function kaimenName(masters, id) {
   return m['所在地'] ? `${base}${m['所在地']}` : base;
 }
 
+export function ikebaBaseName(masters, id) {
+  const m = findById(masters?.池場, '池場ID', id);
+  return m ? m['池場名'] : id || '';
+}
+
+export function ikebaRegion(masters, id) {
+  const m = findById(masters?.池場, '池場ID', id);
+  return m ? m['地域表示'] || '' : '';
+}
+
+export function kaimenPersonName(masters, id) {
+  const m = findById(masters?.海面業者, '海面業者ID', id);
+  return m ? m['氏名'] : id || '';
+}
+
+export function kaimenLocation(masters, id) {
+  const m = findById(masters?.海面業者, '海面業者ID', id);
+  return m ? m['所在地'] || '' : '';
+}
+
 export function vehicleLabel(masters, id) {
   const v = findById(masters?.車輌, '車輌ID', id);
   return v ? v['車番'] : id || '';

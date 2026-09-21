@@ -3,9 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules, getLastUpdated } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, formatDateTimeJP } from '../lib/dateUtils';
-import { ikebaName, vehicleLabel, carrierNameByVehicle, kaimenName, tantoushaName } from '../lib/masterLookup';
+import { ikebaBaseName, ikebaRegion, vehicleLabel, carrierNameByVehicle, kaimenPersonName, kaimenLocation, tantoushaName } from '../lib/masterLookup';
 import { representativeStatus } from '../lib/statusUtils';
-import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge } from '../components/UI';
+import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge, statusAccentColor } from '../components/UI';
 import CalendarPopup from '../components/CalendarPopup';
 
 export default function HomeScreen({ onEditSchedule, initialFocus }) {
@@ -124,7 +124,7 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
   }, [schedules, masters]);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', paddingBottom: 40 }}>
+    <div style={{ minHeight: '100vh', width: '100%', overflowX: 'hidden', boxSizing: 'border-box', background: 'var(--c-bg)', color: 'var(--c-text)', paddingBottom: 40 }}>
       {/* 最終更新日時 */}
       <div style={{ padding: '14px 16px 0' }}>
         {lastUpdatedError ? (
@@ -154,14 +154,16 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 14,
-          padding: '20px 16px 10px',
+          gap: 8,
+          padding: '20px 8px 10px',
+          boxSizing: 'border-box',
+          width: '100%',
         }}
       >
         <button onClick={() => setSelectedDate((d) => addDays(d, -1))} style={arrowBtnStyle}>
           ‹
         </button>
-        <div style={{ fontSize: 20, fontWeight: 700, minWidth: 160, textAlign: 'center' }}>
+        <div style={{ fontSize: 20, fontWeight: 700, minWidth: 120, textAlign: 'center' }}>
           {formatJP(selectedDate)}
         </div>
         <button onClick={() => setSelectedDate((d) => addDays(d, 1))} style={arrowBtnStyle}>
@@ -209,22 +211,31 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
                     width: '100%',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     padding: '12px 16px',
                     background: 'transparent',
                     border: 'none',
                     color: 'var(--c-text)',
-                    fontSize: 17,
-                    fontWeight: 700,
                     cursor: 'pointer',
                     minHeight: 42,
                     textAlign: 'left',
                   }}
                 >
-                  <span>{ikebaName(masters, ikebaId)}</span>
-                  <span style={{ fontSize: 15, color: 'var(--c-text)', fontWeight: 700 }}>
-                    {totalCount}台・{totalKg.toLocaleString()}kg <span style={{ color: 'var(--c-text-3)', fontWeight: 400 }}>{isOpen ? '▲' : '▼'}</span>
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 17, fontWeight: 700 }}>{ikebaBaseName(masters, ikebaId)}</span>
+                    {ikebaRegion(masters, ikebaId) && (
+                      <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--c-text-3)' }}>
+                        {ikebaRegion(masters, ikebaId)}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: 15, fontWeight: 700 }}>
+                      <span>{totalCount}台</span>
+                      <span>{totalKg.toLocaleString()}kg</span>
+                    </div>
+                    <span style={{ color: 'var(--c-text-3)', fontWeight: 400, fontSize: 15 }}>{isOpen ? '▲' : '▼'}</span>
+                  </div>
                 </button>
                 {isOpen &&
                   kaimenGroups.map(({ kaimenId, items, totalKg: kaimenTotalKg, status: kaimenStatus }) => {
@@ -237,27 +248,36 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
                           style={{
                             width: '100%',
                             display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '10px 16px',
-                            background: 'var(--c-bg-3)',
+                            flexDirection: 'column',
+                            gap: 6,
+                            padding: '10px 16px 10px 12px',
+                            background: 'var(--c-ok-bg)',
                             border: 'none',
-                            color: 'var(--c-text)',
-                            fontSize: 14,
-                            fontWeight: 700,
+                            borderLeft: `5px solid ${statusAccentColor(kaimenStatus)}`,
+                            color: 'var(--c-ok)',
                             cursor: 'pointer',
                             minHeight: 42,
                             textAlign: 'left',
                           }}
                         >
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {kaimenName(masters, kaimenId)}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <span style={{ fontSize: 14, fontWeight: 700 }}>{kaimenPersonName(masters, kaimenId)}</span>
+                              {kaimenLocation(masters, kaimenId) && (
+                                <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.8 }}>
+                                  {kaimenLocation(masters, kaimenId)}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: 14, fontWeight: 700 }}>
+                              <span>{items.length}台</span>
+                              <span>{kaimenTotalKg.toLocaleString()}kg</span>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <StatusBadge status={kaimenStatus} />
-                          </span>
-                          <span style={{ fontSize: 14, color: 'var(--c-text)', fontWeight: 700 }}>
-                            合計 {items.length}台・{kaimenTotalKg.toLocaleString()}kg{' '}
-                            <span style={{ color: 'var(--c-text-3)', fontWeight: 400 }}>{kaimenOpen ? '▲' : '▼'}</span>
-                          </span>
+                            <span style={{ opacity: 0.8, fontWeight: 400, fontSize: 14 }}>{kaimenOpen ? '▲' : '▼'}</span>
+                          </div>
                         </button>
                         {kaimenOpen &&
                           items.map((s) => (
@@ -267,6 +287,7 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
                               style={{
                                 padding: '10px 16px 10px 28px',
                                 borderTop: '1px solid var(--c-border)',
+                                background: 'var(--c-warn-bg)',
                                 cursor: canEdit ? 'pointer' : 'default',
                               }}
                             >
