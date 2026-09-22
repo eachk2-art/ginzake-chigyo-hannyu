@@ -76,8 +76,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
   // 選択中の車輌の最大積載数量を超えていないかチェックする（登録時点で気づけるように）。
   const selectedVehicle = (masters?.車輌 || []).find((v) => v['車輌ID'] === form.車輌ID);
   const maxLoadKg = Number(selectedVehicle?.['最大積載数量kg']) || null;
-  // ★2026-09-22変更：入れ目込みの数量ではなく、予定数量そのものが最大積載数量を超える場合だけ警告する
-  const overCapacity = !!maxLoadKg && suryoKg > maxLoadKg;
+  const overCapacity = !!maxLoadKg && keiryoKg > maxLoadKg;
 
   function buildTantoushaId() {
     if (tantoushaSel === OTHER_TANTOUSHA) return tantoushaFree.trim();
@@ -269,7 +268,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
               const qty = Number(vehicleQty[vehicleId]) || 0;
               const rowKeiryo = Math.round(qty * (1 + ireme / 100));
               const rowMaxLoadKg = Number(v['最大積載数量kg']) || null;
-              const rowOverCapacity = checked && qty > 0 && !!rowMaxLoadKg && qty > rowMaxLoadKg;
+              const rowOverCapacity = checked && qty > 0 && !!rowMaxLoadKg && rowKeiryo > rowMaxLoadKg;
               return (
                 <div
                   key={vehicleId}
@@ -310,7 +309,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
                           }}
                         >
                           入れ目込み{rowKeiryo.toLocaleString()}kg
-                          {rowOverCapacity && `（予定数量が上限${rowMaxLoadKg.toLocaleString()}kg超過）`}
+                          {rowOverCapacity && `（上限${rowMaxLoadKg.toLocaleString()}kg超過）`}
                         </span>
                       )}
                     </div>
@@ -370,7 +369,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
             </div>
             {overCapacity && (
               <div style={{ fontSize: 13, color: 'var(--c-danger)', marginTop: 4 }}>
-                ※ 予定数量が、選択中の車輌の最大積載数量（{maxLoadKg}kg）を超えています。車輌を変更するか、予定数量を見直してください
+                ※ 選択中の車輌の最大積載数量（{maxLoadKg}kg）を超えています。車輌を変更するか、予定数量・入れ目率を見直してください
               </div>
             )}
           </div>

@@ -15,7 +15,6 @@ import KaimenScheduleScreen from './screens/KaimenScheduleScreen';
 import JointScheduleScreen from './screens/JointScheduleScreen';
 import KaimenMenuScreen from './screens/KaimenMenuScreen';
 import ContactsScreen from './screens/ContactsScreen';
-import MasterAdminScreen from './screens/MasterAdminScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import NavBar from './components/NavBar';
 
@@ -132,8 +131,6 @@ function MainShell() {
       )}
 
       {screen === 'changeLog' && auth.role === '太協' && <ChangeLogScreen />}
-
-      {screen === 'masterAdmin' && auth.role === '太協' && <MasterAdminScreen />}
 
       {screen === 'contacts' && (auth.role === '太協' || auth.role === '運送会社') && <ContactsScreen />}
 

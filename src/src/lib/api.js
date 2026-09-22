@@ -1,17 +1,11 @@
-// 接続先URL（さくらのPHP版API）。
-// ・.env の VITE_API_URL と、下のフォールバックURLは必ず同じ値にすること
-// ・GAS版は2026-09-23に停止。スプレッドシートとGASのコードは凍結保存してある
-const API_URL = import.meta.env.VITE_API_URL || 'https://e-taikyo.co.jp/chigyo/api/';
-
-// ログインの有効期限切れ等（PHP版が code:'AUTH_REQUIRED' を返したとき）に呼ぶ処理。
-// AuthContext 側で「ログアウトしてログイン画面に戻す」処理を登録する。
-let onAuthExpired = null;
-export function setAuthExpiredHandler(fn) {
-  onAuthExpired = fn;
-}
+// GAS WebアプリURL。.env の VITE_GAS_URL と、下記フォールバックURLは
+// 必ず同じ値にすること（全社共通指示文）。GASを再デプロイしたら両方更新する。
+const GAS_URL =
+  import.meta.env.VITE_GAS_URL ||
+  'https://script.google.com/macros/s/AKfycbwDNtQcV-zQdWl6zwG5AY6Y7RQ2sDZGd3eDFprtiy0tW3oayNt2Lw-Y-hF4wUOWmbkV/exec';
 
 /**
- * API（PHP版／GAS版）へのPOST共通処理。
+ * GAS APIへのPOST共通処理。
  * ・CORS制約のため Content-Type は必ず text/plain にする
  * ・loginId / role / refId は呼び出し側から渡された auth を毎回自動で付与する
  *   （GASはリクエストごとに独立しており、サーバー側にセッションを持たないため）
@@ -32,14 +26,13 @@ async function callAction(action, params = {}, auth = null) {
     loginId: auth?.loginId || '',
     role: auth?.role || '',
     refId: auth?.refId || '',
-    token: auth?.token || '', // PHP版はこのトークンでログイン中の事業者を確認する（GAS版は無視する）
     ...params,
   };
 
   let lastError;
   for (let attempt = 0; attempt <= RETRY_COUNT; attempt++) {
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(body),
@@ -57,8 +50,6 @@ async function callAction(action, params = {}, auth = null) {
 
       const json = await res.json();
       if (!json.success) {
-        // ログインの有効期限切れ等は、ログイン画面に戻す
-        if (json.code === 'AUTH_REQUIRED' && onAuthExpired) onAuthExpired();
         // アプリ側の業務エラー（PIN違い等）はリトライしても直らないので即座に投げる
         throw new Error(json.error || '不明なエラーが発生しました');
       }
@@ -103,9 +94,6 @@ export const cancelSchedule = (auth, scheduleId, reason) =>
   callAction('cancelSchedule', { scheduleId, reason }, auth);
 export const bulkCreateSchedule = (auth, dataList) =>
   callAction('bulkCreateSchedule', { dataList }, auth);
-// 納品先（海面業者）の積込順の並べ替え（PHP版でのみ使える）
-export const reorderKaimenGroups = (auth, date, ikebaId, kaimenIds) =>
-  callAction('reorderKaimenGroups', { date, ikebaId, kaimenIds }, auth);
 
 // ---- 積込実績・搬入実績 ----
 export const createLoadingResult = (auth, scheduleId, header, details) =>
@@ -139,19 +127,3 @@ export const bulkConfirmDelivery = (auth, scheduleIds) =>
 // ---- 海面業者向け：横浦地区の共同予定表 ----
 export const getJointScheduleMarks = (auth, kaimenIds, dateFrom, dateTo) =>
   callAction('getJointScheduleMarks', { kaimenIds, dateFrom, dateTo }, auth);
-
-// ---- マスタ管理（SCR-100、太協のみ。PHP版でのみ使える） ----
-export const adminListMaster = (auth, master, includeDeleted = true) =>
-  callAction('adminListMaster', { master, includeDeleted }, auth);
-export const adminSuggestId = (auth, master, parentId) =>
-  callAction('adminSuggestId', { master, parentId }, auth);
-export const adminCreateMaster = (auth, master, data, pin = null) =>
-  callAction('adminCreateMaster', pin === null ? { master, data } : { master, data, pin }, auth);
-export const adminUpdateMaster = (auth, master, id, data) =>
-  callAction('adminUpdateMaster', { master, id, data }, auth);
-export const adminSetDeleted = (auth, master, id, deleted) =>
-  callAction('adminSetDeleted', { master, id, deleted }, auth);
-export const adminCheckUsage = (auth, master, id) =>
-  callAction('adminCheckUsage', { master, id }, auth);
-export const adminResetPin = (auth, loginId, newPin) =>
-  callAction('adminResetPin', { loginId, newPin }, auth);

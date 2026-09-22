@@ -106,20 +106,17 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
         const kaimenGroups = Array.from(byKaimen.entries())
           .map(([kaimenId, items]) => {
             const sorted = [...items].sort((a, b) => orderKey(a) - orderKey(b));
-            // 取消の車輌は、台数・数量の合計に含めない（一覧には「取消」として表示は残す）
-            const activeItems = sorted.filter((s) => s['ステータス'] !== '取消');
-            const totalKg = activeItems.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
+            const totalKg = sorted.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
             return {
               kaimenId,
               items: sorted,
-              activeCount: activeItems.length,
               totalKg,
               minOrder: orderKey(sorted[0]),
               status: representativeStatus(sorted),
             };
           })
           .sort((a, b) => a.minOrder - b.minOrder);
-        const totalCount = kaimenGroups.reduce((sum, g) => sum + g.activeCount, 0);
+        const totalCount = kaimenGroups.reduce((sum, g) => sum + g.items.length, 0);
         const totalKg = kaimenGroups.reduce((sum, g) => sum + g.totalKg, 0);
         return { ikebaId, kaimenGroups, totalCount, totalKg };
       })
@@ -241,7 +238,7 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
                   </div>
                 </button>
                 {isOpen &&
-                  kaimenGroups.map(({ kaimenId, items, activeCount, totalKg: kaimenTotalKg, status: kaimenStatus }) => {
+                  kaimenGroups.map(({ kaimenId, items, totalKg: kaimenTotalKg, status: kaimenStatus }) => {
                     const kaimenKey = `${ikebaId}|${kaimenId}`;
                     const kaimenOpen = openKaimen.has(kaimenKey);
                     return (
@@ -273,7 +270,7 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
                               )}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: 14, fontWeight: 700 }}>
-                              <span>{activeCount}台</span>
+                              <span>{items.length}台</span>
                               <span>{kaimenTotalKg.toLocaleString()}kg</span>
                             </div>
                           </div>

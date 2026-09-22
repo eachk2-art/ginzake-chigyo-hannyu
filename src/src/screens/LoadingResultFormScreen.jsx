@@ -113,7 +113,6 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
     水温: result?.['水温'] ?? '',
     溶存酸素: result?.['溶存酸素'] ?? '',
     ワクチン本数: result?.['ワクチン本数'] ?? '',
-    積込回数: result?.['積込回数'] ?? '',
     積込開始時刻: result?.['積込開始時刻'] || '',
     積込終了時刻: result?.['積込終了時刻'] || '',
     出発時刻: result?.['出発時刻'] || '',
@@ -138,18 +137,6 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
 
   const [error, setError] = useState('');
 
-  // ★2026-09-22追加：保存した時点の入力内容を覚えておき、今の入力内容と同じ間は
-  // 保存ボタンを「✓ 保存済み」表示にする。どこか1か所でも変えると「保存」に戻る。
-  const [savedSnapshot, setSavedSnapshot] = useState(null);
-  const snapshotOf = (h, rs, sel, free) =>
-    JSON.stringify({
-      h,
-      rs: rs.map((r) => [r.id || null, r['池場ID'] || '', String(r['実績数量kg'] ?? '')]),
-      sel,
-      free,
-    });
-  const isSaved = savedSnapshot !== null && savedSnapshot === snapshotOf(header, rows, tantoushaSel, tantoushaFree);
-
   function setH(key, val) {
     setHeader((h) => ({ ...h, [key]: val }));
   }
@@ -157,7 +144,7 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
   }
   function addRow() {
-    if (rows.length >= maxDetails) return;
+    if (rows.length >= MAX_DETAILS) return;
     setRows((rs) => [...rs, { id: null, 池場ID: schedule['池場ID'], 実績数量kg: '' }]);
   }
   function removeRow(i) {
@@ -173,27 +160,38 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
   const iremeRate = Number(schedule['予定入れ目率']) || 0;
   const targetKg = Math.round(baseSuryoKg * (1 + iremeRate / 100));
 
-  const SMALL_UNIT_KG = 250; // 計量は250kgバケット単位で行う
+  // 車輌ごとの水槽容量はマスタ_車輌から参照する。
+  const vehicle = (masters?.車輌 || []).find((v) => v['車輌ID'] === schedule['車輌ID']);
+  const tankUnitKg = Number(vehicle?.['水槽容量']) || 250;
+  const SMALL_UNIT_KG = 250; // 500kg水槽でも250kgバケットで2回に分けて計量することがあるため、常に選択肢として出す
 
   const remainingKg = targetKg - totalKg;
 
-  // 車輌マスタの水槽情報から「250kgバケットで何回積むか」を求める。
-  // 例：250kg×4槽＝1000kg積み→4回／250kg×5槽＝1250kg積み→5回／
-  //     500kg×2槽＝1000kg積み→4回／500kg×3槽＝1500kg積み→6回
-  const vehicle = (masters?.車輌 || []).find((v) => v['車輌ID'] === schedule['車輌ID']);
-  const vehicleCapacityKg =
-    Number(vehicle?.['最大積載数量kg']) ||
-    (Number(vehicle?.['水槽容量']) || 0) * (Number(vehicle?.['水槽数']) || 0);
-  const suggestedRounds = vehicleCapacityKg > 0 ? Math.ceil(vehicleCapacityKg / SMALL_UNIT_KG) : 0;
+  // 計量明細の残り枠は「1つの水槽を複数回に分けて計量する場合がある」ため、
+  // 水槽数ではなく従来通りMAX_DETAILSを上限とする。
+  const availableSlots = Math.max(MAX_DETAILS - rows.length, 0);
 
-  // 画面で積込回数が入力されていればそれを優先し、未入力なら車輌マスタからの回数を使う
-  const enteredRounds = Number(header.積込回数) || 0;
-  const plannedRounds = enteredRounds > 0 ? enteredRounds : suggestedRounds;
+  // 指定した単位（250kg or 500kgなど）で計量した場合の提案を1件作る。
+  function buildSuggestion(unitKg) {
+    if (remainingKg <= 0 || availableSlots <= 0) return null;
+    const idealCount = Math.ceil(remainingKg / unitKg);
+    const count = Math.min(idealCount, availableSlots);
+    const perBucket = Math.round(remainingKg / count);
+    return { unitKg, idealCount, count, perBucket, slotShort: idealCount > availableSlots };
+  }
 
-  // 計量明細の上限は、予定の積込回数（最低でもMAX_DETAILS）まで
-  const maxDetails = Math.max(MAX_DETAILS, plannedRounds);
-  const remainingRounds = Math.max(plannedRounds - rows.length, 0);
-  const perBucketKg = remainingRounds > 0 && remainingKg > 0 ? Math.round(remainingKg / remainingRounds) : 0;
+  // 500kg水槽の車輌は「500kg×1回」案と「250kg×2回」案の両方を、
+  // 250kg水槽の車輌は250kg基準の案のみを提示する。
+  // ただし、枠不足で単位に関わらず同じ答え（残り枠数で均等割り）に丸められる場合は、
+  // 単位違いの同じ内容が重複表示されてしまうため、枠内に収まる提案だけを個別表示し、
+  // どちらも収まらない場合は単位に関係ない共通の1行にまとめる。
+  const rawSuggestions = (tankUnitKg > SMALL_UNIT_KG
+    ? [buildSuggestion(tankUnitKg), buildSuggestion(SMALL_UNIT_KG)]
+    : [buildSuggestion(SMALL_UNIT_KG)]
+  ).filter(Boolean);
+  const feasibleSuggestions = rawSuggestions.filter((s) => !s.slotShort);
+  const genericPerBucket =
+    availableSlots > 0 && remainingKg > 0 ? Math.round(remainingKg / availableSlots) : 0;
 
   function buildTantoushaId() {
     return tantoushaSel === OTHER_TANTOUSHA ? tantoushaFree.trim() : tantoushaSel;
@@ -241,16 +239,16 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
           '保存はできましたが、想定外の形式で応答が返ってきました。GASが最新版か確認してください。'
         );
       }
-      const newRows = savedDetails
-        .slice()
-        .sort((a, b) => Number(a['積込回次']) - Number(b['積込回次']))
-        .map((d) => ({
-          id: d['積込実績明細ID'],
-          池場ID: d['池場ID'],
-          実績数量kg: d['実績数量kg'] ?? '',
-        }));
-      setRows(newRows);
-      setSavedSnapshot(snapshotOf(header, newRows, tantoushaSel, tantoushaFree));
+      setRows(
+        savedDetails
+          .slice()
+          .sort((a, b) => Number(a['積込回次']) - Number(b['積込回次']))
+          .map((d) => ({
+            id: d['積込実績明細ID'],
+            池場ID: d['池場ID'],
+            実績数量kg: d['実績数量kg'] ?? '',
+          }))
+      );
       onLocalSave(saved); // 画面遷移はせず、その場で編集モードに切り替える（続けて搬入実績に進めるように）
     } catch (e) {
       setError(e.message);
@@ -358,42 +356,6 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
         計量明細（合計 {totalKg.toLocaleString()}kg・{rows.length}回）
       </div>
 
-      <Field label="積込回数（250kgバケット換算）">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={header.積込回数}
-            onChange={(e) => setH('積込回数', e.target.value)}
-            placeholder={suggestedRounds > 0 ? String(suggestedRounds) : ''}
-            style={{ ...inputStyle, width: 120 }}
-          />
-          <span style={{ fontSize: 13, color: 'var(--c-text-3)' }}>
-            {suggestedRounds > 0
-              ? `車輌マスタからの目安：${suggestedRounds}回（${vehicleCapacityKg.toLocaleString()}kg積み）`
-              : '車輌マスタに水槽・積載量の情報がありません'}
-          </span>
-          {suggestedRounds > 0 && Number(header.積込回数) !== suggestedRounds && (
-            <button
-              type="button"
-              onClick={() => setH('積込回数', String(suggestedRounds))}
-              style={{
-                fontSize: 13,
-                padding: '6px 12px',
-                minHeight: 42,
-                background: 'transparent',
-                border: '1px solid var(--c-border-2)',
-                borderRadius: 8,
-                color: 'var(--c-text-2)',
-                cursor: 'pointer',
-              }}
-            >
-              目安を入れる
-            </button>
-          )}
-        </div>
-      </Field>
-
       {targetKg > 0 && (
         <div
           style={{
@@ -413,17 +375,19 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
               <div style={{ marginTop: 4, fontSize: 16, fontWeight: 700, color: 'var(--c-warn)' }}>
                 あと {remainingKg.toLocaleString()}kg
               </div>
-              {plannedRounds > 0 && remainingRounds > 0 ? (
+              {feasibleSuggestions.length > 0 ? (
+                feasibleSuggestions.map((s) => (
+                  <div key={s.unitKg} style={{ marginTop: 2, color: 'var(--c-text-2)' }}>
+                    {`${s.unitKg}kg基準：残り${s.count}回・1回あたり約${s.perBucket.toLocaleString()}kgで目標に到達`}
+                  </div>
+                ))
+              ) : availableSlots > 0 ? (
                 <div style={{ marginTop: 2, color: 'var(--c-text-2)' }}>
-                  {`積込回数${plannedRounds}回のうち残り${remainingRounds}回・1回あたり約${perBucketKg.toLocaleString()}kg`}
-                </div>
-              ) : plannedRounds > 0 ? (
-                <div style={{ marginTop: 2, color: 'var(--c-text-2)' }}>
-                  {`予定の積込回数（${plannedRounds}回）に達しています。残りは計量明細を追加して入力してください`}
+                  {`残り${availableSlots}回で目標に到達するには、1回あたり約${genericPerBucket.toLocaleString()}kgが必要です（250kg・500kgいずれの基準でも枠が足りません）`}
                 </div>
               ) : (
-                <div style={{ marginTop: 2, color: 'var(--c-text-2)' }}>
-                  積込回数を入力すると、1回あたりの目安を表示します
+                <div style={{ marginTop: 2, color: 'var(--c-danger)' }}>
+                  計量明細の残り枠がありません（最大{MAX_DETAILS}回）。既存の明細を見直してください
                 </div>
               )}
             </>
@@ -476,7 +440,7 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
         </div>
       ))}
 
-      {rows.length < maxDetails && (
+      {rows.length < MAX_DETAILS && (
         <button
           type="button"
           onClick={addRow}
@@ -491,16 +455,14 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
             marginBottom: 16,
           }}
         >
-          ＋ 計量明細を追加（{rows.length}/{maxDetails}）
+          ＋ 計量明細を追加（{rows.length}/{MAX_DETAILS}）
         </button>
       )}
 
       <ErrorMsg message={error} />
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
-        <BusyButton onClick={handleSave} done={isSaved}>
-          保存
-        </BusyButton>
+        <BusyButton onClick={handleSave}>保存</BusyButton>
         <BusyButton variant="ghost" onClick={onClose}>
           閉じる
         </BusyButton>

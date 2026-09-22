@@ -8,7 +8,6 @@ const ITEMS = [
 const TAIKYO_ONLY_ITEMS = [
   { key: 'changeLog', label: '変更履歴' },
   { key: 'kaimenPicker', label: '予定表' },
-  { key: 'masterAdmin', label: 'マスタ管理' },
 ];
 const CONTACTS_ITEM = { key: 'contacts', label: '連絡先' };
 const LOCATIONS_ITEM = { key: 'locations', label: '池場・搬入先' };

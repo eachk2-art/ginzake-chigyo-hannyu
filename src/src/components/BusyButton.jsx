@@ -15,22 +15,15 @@ export default function BusyButton({
   disabled = false,
   fullWidth = false,
   style,
-  // ★2026-09-22追加：保存が済んで、その後まだ何も変更していない状態を表す。
-  // true の間はボタンを「✓ 保存済み」表示（押せない）にし、入力を変えたら呼び出し側で false に戻す
-  done = false,
-  doneLabel = '✓ 保存済み',
 }) {
   const [busy, setBusy] = useState(false);
   const mountedRef = useRef(true);
-  // ★2026-09-22修正：React 18の開発モード（StrictMode）では、画面表示時に
-  // 「表示→後片付け→再表示」が1回余分に行われる。以前は後片付けで false にするだけで
-  // 再表示時に true へ戻していなかったため、npm run dev で保存後もスピナーが止まらなかった。
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
+  useEffect(
+    () => () => {
       mountedRef.current = false;
-    };
-  }, []);
+    },
+    []
+  );
 
   async function handleClick(e) {
     if (busy || disabled) return; // 二重送信防止
@@ -71,8 +64,7 @@ export default function BusyButton({
     },
   };
 
-  const showDone = done && !busy;
-  const isDisabled = busy || disabled || showDone;
+  const isDisabled = busy || disabled;
 
   return (
     <button
@@ -82,12 +74,9 @@ export default function BusyButton({
       style={{
         ...base,
         ...variants[variant],
-        opacity: disabled && !busy && !showDone ? 0.5 : 1,
+        opacity: disabled && !busy ? 0.5 : 1,
         cursor: isDisabled ? 'default' : 'pointer',
         ...style,
-        ...(showDone
-          ? { background: 'var(--c-ok-bg)', color: 'var(--c-ok)', border: '1px solid var(--c-ok)' }
-          : {}),
       }}
       onPointerDown={(e) => {
         if (!isDisabled) e.currentTarget.style.transform = 'scale(0.97)';
@@ -99,7 +88,7 @@ export default function BusyButton({
         e.currentTarget.style.transform = 'scale(1)';
       }}
     >
-      {busy ? <Spinner /> : showDone ? doneLabel : children}
+      {busy ? <Spinner /> : children}
     </button>
   );
 }

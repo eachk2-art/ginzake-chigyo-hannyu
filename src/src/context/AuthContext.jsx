@@ -1,5 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { setAuthExpiredHandler } from '../lib/api';
+import { createContext, useContext, useState, useCallback } from 'react';
 
 // タブを閉じるまでログイン状態を保持する（決定②：sessionStorage採用）。
 // ブラウザ・タブを完全に閉じると消え、再度ログインが必要になる。
@@ -33,12 +32,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => setAuth(null), [setAuth]);
-
-  // PHP版APIから「ログインの有効期限切れ」が返ってきたら、ログアウトしてログイン画面に戻す
-  useEffect(() => {
-    setAuthExpiredHandler(logout);
-    return () => setAuthExpiredHandler(null);
-  }, [logout]);
 
   return (
     <AuthContext.Provider value={{ auth, setAuth, logout }}>{children}</AuthContext.Provider>

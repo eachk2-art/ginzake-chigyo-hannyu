@@ -114,12 +114,6 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
   const [tantoushaFree, setTantoushaFree] = useState(initialIsOther ? initialTantoushaId : '');
 
   const [error, setError] = useState('');
-
-  // ★2026-09-22追加：保存した時点の入力内容と今の入力内容が同じ間は「✓ 保存済み」表示にする
-  const [savedSnapshot, setSavedSnapshot] = useState(null);
-  const snapshotOf = (f, sel, free) => JSON.stringify({ f, sel, free });
-  const isSaved = savedSnapshot !== null && savedSnapshot === snapshotOf(form, tantoushaSel, tantoushaFree);
-
   const [showConfirmPanel, setShowConfirmPanel] = useState(false);
   const [confirmed, setConfirmed] = useState(delivery?.['完了確認'] === 'あり');
   const [confirmedAt, setConfirmedAt] = useState(delivery?.['完了確認日時'] || '');
@@ -155,7 +149,6 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
       } else {
         saved = await createDeliveryResult(auth, schedule['積込予定ID'], resultId, data);
       }
-      setSavedSnapshot(snapshotOf(form, tantoushaSel, tantoushaFree));
       onLocalSave(saved); // 画面遷移はせず、その場で編集モードに切り替える（続けて完了確認できるように）
     } catch (e) {
       setError(e.message);
@@ -277,9 +270,7 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
       <ErrorMsg message={error} />
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
-        <BusyButton onClick={handleSave} done={isSaved}>
-          保存
-        </BusyButton>
+        <BusyButton onClick={handleSave}>保存</BusyButton>
         <BusyButton variant="ghost" onClick={onClose}>
           閉じる
         </BusyButton>

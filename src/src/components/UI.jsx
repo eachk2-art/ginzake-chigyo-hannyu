@@ -1,14 +1,11 @@
 // 6段階ステータス（要件定義書10章）の色分け
-// ・bg：バッジの背景色／text：バッジの文字色／accent：色帯（第2層の左端など）の色
-// ★2026-09-22変更：搬入完了と納品完了がどちらも緑系で見分けにくかったため、
-//   搬入完了は紫系に変更し、納品完了は「塗りつぶしの明るい緑＋✓」で一番目立つ表示にした
 const STATUS_COLORS = {
   予定: { bg: 'var(--c-bg-3)', text: 'var(--c-text-2)' },
   積込中: { bg: 'var(--c-warn-bg)', text: 'var(--c-warn)' },
   輸送中: { bg: '#123a3a', text: '#4fd1c5' },
   搬入中: { bg: '#1c2f56', text: '#8ab4ff' },
-  搬入完了: { bg: '#2d1f4a', text: '#d0b3ff' },
-  納品完了: { bg: '#2fd35a', text: '#04210c', accent: '#2fd35a', mark: '✓ ', border: '#8bf29b' },
+  搬入完了: { bg: 'var(--c-ok-bg)', text: 'var(--c-ok)' },
+  納品完了: { bg: '#0f3d20', text: '#8bf29b' },
   取消: { bg: 'var(--c-danger-bg)', text: 'var(--c-danger)' },
   保留: { bg: 'var(--c-warn-bg)', text: 'var(--c-warn)' },
 };
@@ -16,7 +13,7 @@ const STATUS_COLORS = {
 // 色帯（第2層の左端など）に、バッジと同じ色系統を使うためのヘルパー
 export function statusAccentColor(status) {
   const c = STATUS_COLORS[status] || STATUS_COLORS['予定'];
-  return c.accent || c.text;
+  return c.text;
 }
 
 export function StatusBadge({ status }) {
@@ -29,12 +26,10 @@ export function StatusBadge({ status }) {
         fontSize: 14,
         padding: '3px 10px',
         borderRadius: 20,
-        fontWeight: c.mark ? 800 : 600,
+        fontWeight: 600,
         whiteSpace: 'nowrap',
-        border: c.border ? `1px solid ${c.border}` : 'none',
       }}
     >
-      {c.mark || ''}
       {status}
     </span>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
-import { getSchedules, reorderKaimenGroups } from '../lib/api';
+import { getSchedules } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, monthRange } from '../lib/dateUtils';
 import { ikebaName, vehicleLabel, carrierNameByVehicle, kaimenName, tantoushaName } from '../lib/masterLookup';
 import { representativeStatus } from '../lib/statusUtils';
@@ -64,27 +64,6 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
     load();
   }, [load]);
 
-  // 納品先（海面業者）グループの積込順を1つ上／下に入れ替える（太協のみ）。
-  // グループの中の車輌の順番はそのまま保たれる。
-  const [orderError, setOrderError] = useState('');
-  const [moving, setMoving] = useState(false);
-  async function moveKaimenGroup(dateKey, ikebaId, kaimenIds, index, dir) {
-    const target = index + dir;
-    if (target < 0 || target >= kaimenIds.length || moving) return;
-    const next = [...kaimenIds];
-    [next[index], next[target]] = [next[target], next[index]];
-    setOrderError('');
-    setMoving(true);
-    try {
-      await reorderKaimenGroups(auth, dateKey, ikebaId, next);
-      await load();
-    } catch (e) {
-      setOrderError(e.message);
-    } finally {
-      setMoving(false);
-    }
-  }
-
   // 積込順（列が無い古いデータは積込予定IDの下2桁で暫定対応）
   const loadingOrder = useCallback((s) => {
     const n = Number(s['積込順']);
@@ -129,20 +108,17 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
             const kaimenGroups = Array.from(byKaimen.entries())
               .map(([kaimenId, items]) => {
                 const sorted = [...items].sort((a, b) => loadingOrder(a) - loadingOrder(b));
-                // 取消の車輌は、台数・数量の合計に含めない（一覧には「取消」として表示は残す）
-                const activeItems = sorted.filter((s) => s['ステータス'] !== '取消');
-                const totalKg = activeItems.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
+                const totalKg = sorted.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
                 return {
                   kaimenId,
                   items: sorted,
-                  activeCount: activeItems.length,
                   totalKg,
                   minOrder: loadingOrder(sorted[0]),
                   status: representativeStatus(sorted),
                 };
               })
               .sort((a, b) => a.minOrder - b.minOrder);
-            const totalCount = kaimenGroups.reduce((sum, g) => sum + g.activeCount, 0);
+            const totalCount = kaimenGroups.reduce((sum, g) => sum + g.items.length, 0);
             const totalKg = kaimenGroups.reduce((sum, g) => sum + g.totalKg, 0);
             return { ikebaId, kaimenGroups, totalCount, totalKg };
           })
@@ -214,7 +190,6 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
 
       <div style={{ padding: '10px 16px' }}>
         {error && <ErrorMsg message={`予定の取得に失敗しました：${error}`} onRetry={load} />}
-        {orderError && <ErrorMsg message={`並べ替えに失敗しました：${orderError}`} />}
         {!error && schedules === null && <LoadingMsg>予定を読み込んでいます…</LoadingMsg>}
         {!error && schedules && schedules.length === 0 && <EmptyMsg>この期間の予定はありません</EmptyMsg>}
 
@@ -297,77 +272,41 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                         </button>
 
                         {ikebaOpen &&
-                          kaimenGroups.map(({ kaimenId, items, activeCount, totalKg: kaimenTotalKg, status: kaimenStatus }, kaimenIdx) => {
+                          kaimenGroups.map(({ kaimenId, items, totalKg: kaimenTotalKg, status: kaimenStatus }) => {
                             const kaimenKey = `${ikebaKey}|${kaimenId}`;
                             const kaimenOpen = openKaimen.has(kaimenKey);
                             return (
                               <div key={kaimenId} style={{ borderTop: '1px solid var(--c-border)' }}>
                                 {/* 階層3：海面業者（生産者） */}
-                                <div style={{ display: 'flex', alignItems: 'center', background: 'var(--c-bg-3)' }}>
-                                  <button
-                                    onClick={() => toggleKaimen(kaimenKey)}
-                                    style={{
-                                      flex: 1,
-                                      display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center',
-                                      padding: '10px 16px 10px 32px',
-                                      background: 'transparent',
-                                      border: 'none',
-                                      color: 'var(--c-text)',
-                                      fontSize: 14,
-                                      fontWeight: 700,
-                                      cursor: 'pointer',
-                                      minHeight: 42,
-                                      textAlign: 'left',
-                                    }}
-                                  >
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                      {kaimenName(masters, kaimenId)}
-                                      <StatusBadge status={kaimenStatus} />
+                                <button
+                                  onClick={() => toggleKaimen(kaimenKey)}
+                                  style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '10px 16px 10px 32px',
+                                    background: 'var(--c-bg-3)',
+                                    border: 'none',
+                                    color: 'var(--c-text)',
+                                    fontSize: 14,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    minHeight: 42,
+                                    textAlign: 'left',
+                                  }}
+                                >
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    {kaimenName(masters, kaimenId)}
+                                    <StatusBadge status={kaimenStatus} />
+                                  </span>
+                                  <span style={{ fontSize: 14, color: 'var(--c-text)', fontWeight: 700 }}>
+                                    合計 {items.length}台・{kaimenTotalKg.toLocaleString()}kg{' '}
+                                    <span style={{ color: 'var(--c-text-3)', fontWeight: 400 }}>
+                                      {kaimenOpen ? '▲' : '▼'}
                                     </span>
-                                    <span style={{ fontSize: 14, color: 'var(--c-text)', fontWeight: 700 }}>
-                                      合計 {activeCount}台・{kaimenTotalKg.toLocaleString()}kg{' '}
-                                      <span style={{ color: 'var(--c-text-3)', fontWeight: 400 }}>
-                                        {kaimenOpen ? '▲' : '▼'}
-                                      </span>
-                                    </span>
-                                  </button>
-
-                                  {/* 納品先の積込順の入れ替え（太協のみ） */}
-                                  {auth.role === '太協' && kaimenGroups.length > 1 && (
-                                    <div style={{ display: 'flex', gap: 4, padding: '0 10px 0 4px' }}>
-                                      <OrderButton
-                                        label="▲"
-                                        title="この納品先を1つ前にする"
-                                        disabled={kaimenIdx === 0 || moving}
-                                        onClick={() =>
-                                          moveKaimenGroup(
-                                            dateKey,
-                                            ikebaId,
-                                            kaimenGroups.map((g) => g.kaimenId),
-                                            kaimenIdx,
-                                            -1
-                                          )
-                                        }
-                                      />
-                                      <OrderButton
-                                        label="▼"
-                                        title="この納品先を1つ後にする"
-                                        disabled={kaimenIdx === kaimenGroups.length - 1 || moving}
-                                        onClick={() =>
-                                          moveKaimenGroup(
-                                            dateKey,
-                                            ikebaId,
-                                            kaimenGroups.map((g) => g.kaimenId),
-                                            kaimenIdx,
-                                            1
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                  )}
-                                </div>
+                                  </span>
+                                </button>
 
                                 {/* 階層4：車輌（予定） */}
                                 {kaimenOpen &&
@@ -453,28 +392,3 @@ const dateInputStyle = {
   background: 'var(--c-bg-2)',
   color: 'var(--c-text)',
 };
-
-// 納品先の積込順を入れ替える、小さな▲▼ボタン
-function OrderButton({ label, title, disabled, onClick }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        minWidth: 42,
-        minHeight: 42,
-        borderRadius: 8,
-        border: '1px solid var(--c-border-2)',
-        background: 'transparent',
-        color: disabled ? 'var(--c-text-3)' : 'var(--c-text)',
-        opacity: disabled ? 0.4 : 1,
-        fontSize: 14,
-        cursor: disabled ? 'default' : 'pointer',
-      }}
-    >
-      {label}
-    </button>
-  );
-}
