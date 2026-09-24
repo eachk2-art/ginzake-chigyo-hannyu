@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
-import { getScheduleDetail, createLoadingResult, updateLoadingResult } from '../lib/api';
+import {
+  getScheduleDetail,
+  createLoadingResult,
+  updateLoadingResult,
+  deleteLoadingResult,
+} from '../lib/api';
 import { formatJP } from '../lib/dateUtils';
 import { ikebaName, vehicleLabel, kaimenName } from '../lib/masterLookup';
 import { ErrorMsg, LoadingMsg, StatusBadge } from '../components/UI';
 import BusyButton from '../components/BusyButton';
 import TimeField from '../components/TimeField';
+import { isAdmin } from '../lib/roles';
 
 const OTHER_TANTOUSHA = '__OTHER__';
 const WEATHER_OPTIONS = ['晴れ', '曇り', '雨', '雪'];
@@ -206,6 +212,18 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
     }
     if (rows.length === 0) return '計量明細を1件以上入力してください';
     return '';
+  }
+
+  // 積込実績を丸ごと削除する（管理者のみ）
+  async function handleDeleteResult() {
+    setError('');
+    if (!window.confirm('この積込実績を、計量明細も含めて削除しますか？\n\nステータスは「予定」に戻ります。（データはデータベースに残るので、必要なら戻せます）')) return;
+    try {
+      await deleteLoadingResult(auth, result['積込実績ID']);
+      onClose();
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   async function handleSave() {
@@ -510,6 +528,18 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
           </BusyButton>
         )}
       </div>
+
+      {/* 積込実績を丸ごと削除する（管理者のみ。★2026-09-24） */}
+      {isEdit && isAdmin(auth.role) && (
+        <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--c-border)' }}>
+          <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginBottom: 8 }}>
+            計量明細も含めて、この積込実績を削除します（ステータスは「予定」に戻ります）。
+          </div>
+          <BusyButton variant="danger" onClick={handleDeleteResult}>
+            この積込実績を削除する
+          </BusyButton>
+        </div>
+      )}
     </div>
   );
 }

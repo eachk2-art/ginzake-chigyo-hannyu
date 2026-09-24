@@ -120,6 +120,11 @@ export const updateDeliveryResult = (auth, deliveryId, data) =>
   callAction('updateDeliveryResult', { deliveryId, data }, auth);
 export const confirmDelivery = (auth, deliveryId) =>
   callAction('confirmDelivery', { deliveryId }, auth);
+// 実績を丸ごと削除する（管理者のみ。データは削除フラグで残る）
+export const deleteLoadingResult = (auth, resultId) =>
+  callAction('deleteLoadingResult', { resultId }, auth);
+export const deleteDeliveryResult = (auth, deliveryId) =>
+  callAction('deleteDeliveryResult', { deliveryId }, auth);
 
 // ---- 一覧・連絡先・集計 ----
 export const getCompletedSchedules = (auth, params) =>

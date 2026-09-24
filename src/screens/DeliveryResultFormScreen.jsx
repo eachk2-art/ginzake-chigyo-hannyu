@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
-import { getScheduleDetail, createDeliveryResult, updateDeliveryResult, confirmDelivery } from '../lib/api';
+import {
+  getScheduleDetail,
+  createDeliveryResult,
+  updateDeliveryResult,
+  confirmDelivery,
+  deleteDeliveryResult,
+} from '../lib/api';
 import { formatJP, formatDateTimeJP } from '../lib/dateUtils';
 import { ikebaName, vehicleLabel, kaimenName, tantoushaName } from '../lib/masterLookup';
 import { ErrorMsg, LoadingMsg, StatusBadge } from '../components/UI';
@@ -139,6 +145,18 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
       return '海面立会者の氏名を入力してください（その他を選んだ場合）';
     }
     return '';
+  }
+
+  // 搬入実績を丸ごと削除する（管理者のみ）
+  async function handleDeleteDelivery() {
+    setError('');
+    if (!window.confirm('この搬入実績を削除しますか？\n\n（データはデータベースに残るので、必要なら戻せます）')) return;
+    try {
+      await deleteDeliveryResult(auth, delivery['搬入実績ID']);
+      onClose();
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   async function handleSave() {
@@ -285,6 +303,18 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
           閉じる
         </BusyButton>
       </div>
+
+      {/* 搬入実績を丸ごと削除する（管理者のみ。★2026-09-24） */}
+      {delivery && isAdmin(auth.role) && (
+        <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--c-border)' }}>
+          <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginBottom: 8 }}>
+            この搬入実績を削除します（ステータスは積込実績の入力状況に応じて戻ります）。
+          </div>
+          <BusyButton variant="danger" onClick={handleDeleteDelivery}>
+            この搬入実績を削除する
+          </BusyButton>
+        </div>
+      )}
 
       {/* 完了確認：他の項目とは別扱いにし、確認パネルを挟む。操作できるのは管理者のみ（★2026-09-23） */}
       {(confirmed || isAdmin(auth.role)) && (
