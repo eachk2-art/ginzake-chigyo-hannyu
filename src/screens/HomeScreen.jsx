@@ -7,11 +7,12 @@ import { ikebaBaseName, ikebaRegion, vehicleLabel, carrierNameByVehicle, kaimenP
 import { representativeStatus } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge, statusAccentColor } from '../components/UI';
 import CalendarPopup from '../components/CalendarPopup';
+import { isTaikyo } from '../lib/roles';
 
 export default function HomeScreen({ onEditSchedule, initialFocus }) {
   const { auth } = useAuth();
   const { masters } = useMasters();
-  const canEdit = auth.role === '太協';
+  const canEdit = isTaikyo(auth.role);
   const [selectedDate, setSelectedDate] = useState(() =>
     initialFocus ? new Date(initialFocus.date.replace(/-/g, '/')) : today()
   );

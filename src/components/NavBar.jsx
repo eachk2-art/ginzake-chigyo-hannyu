@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { isAdmin, isTaikyo } from '../lib/roles';
 
 const ITEMS = [
   { key: 'home', label: 'ホーム' },
   { key: 'scheduleList', label: '積込予定一覧' },
 ];
-const TAIKYO_ONLY_ITEMS = [
+const TAIKYO_ITEMS = [{ key: 'kaimenPicker', label: '予定表' }];
+const ADMIN_ONLY_ITEMS = [
   { key: 'changeLog', label: '変更履歴' },
-  { key: 'kaimenPicker', label: '予定表' },
   { key: 'masterAdmin', label: 'マスタ管理' },
 ];
 const CONTACTS_ITEM = { key: 'contacts', label: '連絡先' };
@@ -17,8 +18,9 @@ export default function NavBar({ screen, onChange }) {
   const { auth, logout } = useAuth();
   const [open, setOpen] = useState(false);
   let items = ITEMS;
-  if (auth.role === '太協' || auth.role === '運送会社') items = [...items, CONTACTS_ITEM, LOCATIONS_ITEM];
-  if (auth.role === '太協') items = [...items, ...TAIKYO_ONLY_ITEMS];
+  if (isTaikyo(auth.role) || auth.role === '運送会社') items = [...items, CONTACTS_ITEM, LOCATIONS_ITEM];
+  if (isTaikyo(auth.role)) items = [...items, ...TAIKYO_ITEMS];
+  if (isAdmin(auth.role)) items = [...items, ...ADMIN_ONLY_ITEMS];
 
   function select(key) {
     onChange(key);

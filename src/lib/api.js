@@ -103,9 +103,9 @@ export const cancelSchedule = (auth, scheduleId, reason) =>
   callAction('cancelSchedule', { scheduleId, reason }, auth);
 export const bulkCreateSchedule = (auth, dataList) =>
   callAction('bulkCreateSchedule', { dataList }, auth);
-// 納品先（海面業者）の積込順の並べ替え（PHP版でのみ使える）
-export const reorderKaimenGroups = (auth, date, ikebaId, kaimenIds) =>
-  callAction('reorderKaimenGroups', { date, ikebaId, kaimenIds }, auth);
+// 積込順の並べ替え（納品先のまとまり・車輌のどちらの入れ替えにも使う）
+export const reorderSchedules = (auth, date, ikebaId, scheduleIds) =>
+  callAction('reorderSchedules', { date, ikebaId, scheduleIds }, auth);
 
 // ---- 積込実績・搬入実績 ----
 export const createLoadingResult = (auth, scheduleId, header, details) =>

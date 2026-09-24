@@ -7,6 +7,7 @@ import { ikebaName, vehicleLabel, kaimenName, tantoushaName } from '../lib/maste
 import { ErrorMsg, LoadingMsg, StatusBadge } from '../components/UI';
 import BusyButton from '../components/BusyButton';
 import TimeField from '../components/TimeField';
+import { isAdmin } from '../lib/roles';
 
 const OTHER_TANTOUSHA = '__OTHER__';
 const CONDITION_OPTIONS = ['良好', '要観察', '不良'];
@@ -285,7 +286,8 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
         </BusyButton>
       </div>
 
-      {/* 完了確認：他の項目とは別扱いにし、確認パネルを挟む */}
+      {/* 完了確認：他の項目とは別扱いにし、確認パネルを挟む。操作できるのは管理者のみ（★2026-09-23） */}
+      {(confirmed || isAdmin(auth.role)) && (
       <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--c-border)' }}>
         {confirmed ? (
           <div
@@ -335,6 +337,7 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
           </>
         )}
       </div>
+      )}
     </div>
   );
 }

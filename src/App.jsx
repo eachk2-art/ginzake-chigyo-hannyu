@@ -18,6 +18,7 @@ import ContactsScreen from './screens/ContactsScreen';
 import MasterAdminScreen from './screens/MasterAdminScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import NavBar from './components/NavBar';
+import { isAdmin, isTaikyo } from './lib/roles';
 
 // 太協・内水面業者・運送会社向け（従来通りの操作画面一式）
 function MainShell() {
@@ -48,7 +49,7 @@ function MainShell() {
 
   // 新規登録：積込予定一覧の「＋新規登録」からのみ入る。閉じたら一覧に戻る。
   function openCreateForm() {
-    if (auth.role !== '太協') return;
+    if (!isTaikyo(auth.role)) return;
     setEditingSchedule(null);
     setFormReturnScreen('scheduleList');
     setScreen('scheduleForm');
@@ -57,7 +58,7 @@ function MainShell() {
   // 車輌をタップ→編集メニューを開く。fromは呼び出し元の画面（'home' | 'scheduleList'）。
   // 編集メニューを閉じると、この画面の、この車輌が含まれる業者グループを開いた状態で戻る。
   function openEditMenu(schedule, from) {
-    if (auth.role !== '太協') return;
+    if (!isTaikyo(auth.role)) return;
     setActiveSchedule(schedule);
     setReturnScreen(from);
     setReturnFocus({ date: schedule['積込日'], ikebaId: schedule['池場ID'], kaimenId: schedule['海面業者ID'] });
@@ -67,6 +68,7 @@ function MainShell() {
   // 編集メニューの4つのボタン
   function selectMenuAction(target) {
     if (target === 'scheduleForm') {
+      if (!isAdmin(auth.role)) return; // 予定の編集は管理者のみ
       setEditingSchedule(activeSchedule);
       setFormReturnScreen('editMenu');
     }
@@ -102,7 +104,8 @@ function MainShell() {
         />
       )}
 
-      {screen === 'scheduleForm' && auth.role === '太協' && (
+      {/* 新規登録は太協も可、編集は管理者のみ（★2026-09-23） */}
+      {screen === 'scheduleForm' && (editingSchedule ? isAdmin(auth.role) : isTaikyo(auth.role)) && (
         <ScheduleFormScreen
           initial={editingSchedule}
           onSaved={closeScheduleForm}
@@ -111,11 +114,11 @@ function MainShell() {
         />
       )}
 
-      {screen === 'editMenu' && auth.role === '太協' && activeSchedule && (
+      {screen === 'editMenu' && isTaikyo(auth.role) && activeSchedule && (
         <EditMenuScreen schedule={activeSchedule} onSelect={selectMenuAction} onClose={closeEditMenu} />
       )}
 
-      {screen === 'loadingResultForm' && auth.role === '太協' && activeSchedule && (
+      {screen === 'loadingResultForm' && isTaikyo(auth.role) && activeSchedule && (
         <LoadingResultFormScreen
           schedule={activeSchedule}
           onClose={closeToEditMenu}
@@ -123,23 +126,23 @@ function MainShell() {
         />
       )}
 
-      {screen === 'deliveryResultForm' && auth.role === '太協' && activeSchedule && (
+      {screen === 'deliveryResultForm' && isTaikyo(auth.role) && activeSchedule && (
         <DeliveryResultFormScreen schedule={activeSchedule} onSaved={closeToEditMenu} onClose={closeToEditMenu} />
       )}
 
-      {screen === 'bulkActions' && auth.role === '太協' && activeSchedule && (
+      {screen === 'bulkActions' && isTaikyo(auth.role) && activeSchedule && (
         <BulkActionsScreen schedule={activeSchedule} onClose={closeToEditMenu} />
       )}
 
-      {screen === 'changeLog' && auth.role === '太協' && <ChangeLogScreen />}
+      {screen === 'changeLog' && isAdmin(auth.role) && <ChangeLogScreen />}
 
-      {screen === 'masterAdmin' && auth.role === '太協' && <MasterAdminScreen />}
+      {screen === 'masterAdmin' && isAdmin(auth.role) && <MasterAdminScreen />}
 
-      {screen === 'contacts' && (auth.role === '太協' || auth.role === '運送会社') && <ContactsScreen />}
+      {screen === 'contacts' && (isTaikyo(auth.role) || auth.role === '運送会社') && <ContactsScreen />}
 
-      {screen === 'locations' && (auth.role === '太協' || auth.role === '運送会社') && <LocationsScreen />}
+      {screen === 'locations' && (isTaikyo(auth.role) || auth.role === '運送会社') && <LocationsScreen />}
 
-      {screen === 'kaimenPicker' && auth.role === '太協' && (
+      {screen === 'kaimenPicker' && isTaikyo(auth.role) && (
         <KaimenPickerScreen
           onSelectKaimen={(id) => {
             setPickedKaimenId(id);
@@ -152,11 +155,11 @@ function MainShell() {
         />
       )}
 
-      {screen === 'kaimenSchedule' && auth.role === '太協' && pickedKaimenId && (
+      {screen === 'kaimenSchedule' && isTaikyo(auth.role) && pickedKaimenId && (
         <KaimenScheduleScreen kaimenId={pickedKaimenId} onClose={() => setScreen('kaimenPicker')} />
       )}
 
-      {screen === 'jointScheduleAdmin' && auth.role === '太協' && pickedJointIds && (
+      {screen === 'jointScheduleAdmin' && isTaikyo(auth.role) && pickedJointIds && (
         <JointScheduleScreen kaimenIds={pickedJointIds} onClose={() => setScreen('kaimenPicker')} />
       )}
     </div>

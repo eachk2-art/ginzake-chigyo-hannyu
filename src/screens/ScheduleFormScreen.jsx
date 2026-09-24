@@ -5,6 +5,7 @@ import { createSchedule, updateSchedule, cancelSchedule, bulkCreateSchedule } fr
 import { ErrorMsg } from '../components/UI';
 import BusyButton from '../components/BusyButton';
 import TimeField from '../components/TimeField';
+import { isAdmin } from '../lib/roles';
 
 const OTHER_TANTOUSHA = '__OTHER__';
 
@@ -452,14 +453,15 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
             積込実績を入力する
           </BusyButton>
         )}
-        {isEdit && (
+        {/* 予定の取消は管理者のみ（★2026-09-23） */}
+        {isEdit && isAdmin(auth.role) && (
           <BusyButton variant="danger" onClick={() => setShowCancelPanel((v) => !v)}>
             この予定を取消にする
           </BusyButton>
         )}
       </div>
 
-      {isEdit && showCancelPanel && (
+      {isEdit && isAdmin(auth.role) && showCancelPanel && (
         <div
           style={{
             marginTop: 16,

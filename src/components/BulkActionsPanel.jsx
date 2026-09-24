@@ -4,6 +4,7 @@ import { bulkSetLoadingResultField, bulkSetDeliveryResultField, bulkConfirmDeliv
 import TimeField from './TimeField';
 import BusyButton from './BusyButton';
 import { ErrorMsg } from './UI';
+import { isAdmin } from '../lib/roles';
 
 // 出発時刻は積込実績側、それ以外（浜到着・作業開始・作業終了）は搬入実績側の項目。
 const FIELDS = [
@@ -87,12 +88,17 @@ export default function BulkActionsPanel({ scheduleIds, onDone }) {
         </div>
       ))}
 
-      <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginBottom: 8 }}>
-        作業終了時刻まで入力済みの車輌だけを対象に、まとめて完了確認します
-      </div>
-      <BusyButton variant="danger" onClick={() => run(() => bulkConfirmDelivery(auth, scheduleIds), '完了確認')}>
-        まとめて完了確認する
-      </BusyButton>
+      {/* まとめて完了確認は管理者のみ（★2026-09-23） */}
+      {isAdmin(auth.role) && (
+        <>
+          <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginBottom: 8 }}>
+            作業終了時刻まで入力済みの車輌だけを対象に、まとめて完了確認します
+          </div>
+          <BusyButton variant="danger" onClick={() => run(() => bulkConfirmDelivery(auth, scheduleIds), '完了確認')}>
+            まとめて完了確認する
+          </BusyButton>
+        </>
+      )}
 
       {resultMsg && <div style={{ fontSize: 13, color: 'var(--c-ok)', marginTop: 12 }}>✓ {resultMsg}</div>}
       <ErrorMsg message={error} />

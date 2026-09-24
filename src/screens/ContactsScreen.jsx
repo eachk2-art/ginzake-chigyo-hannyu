@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { LoadingMsg } from '../components/UI';
+import { isTaikyo } from '../lib/roles';
 
 export default function ContactsScreen() {
   const { auth } = useAuth();
   const { masters } = useMasters();
   const [openGroup, setOpenGroup] = useState(null); // "カテゴリ|ID" の形。一度に1つだけ開く
-  const canSeeAll = auth.role === '太協'; // 内水面業者・海面業者、運送業者の運行管理者・社長は太協のみ
-  const canSeeCarrierDrivers = auth.role === '太協' || auth.role === '運送会社'; // 運送業者のドライバー欄は運送会社も可
+  const canSeeAll = isTaikyo(auth.role); // 内水面業者・海面業者、運送業者の運行管理者・社長は太協のみ
+  const canSeeCarrierDrivers = isTaikyo(auth.role) || auth.role === '運送会社'; // 運送業者のドライバー欄は運送会社も可
 
   if (!masters) return <LoadingMsg>読み込んでいます…</LoadingMsg>;
 

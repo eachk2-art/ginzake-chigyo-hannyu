@@ -2,9 +2,12 @@ import { useMasters } from '../context/MasterContext';
 import { formatJP } from '../lib/dateUtils';
 import { ikebaName, vehicleLabel, kaimenName } from '../lib/masterLookup';
 import { StatusBadge } from '../components/UI';
+import { useAuth } from '../context/AuthContext';
+import { isAdmin } from '../lib/roles';
 
 export default function EditMenuScreen({ schedule, onSelect, onClose }) {
   const { masters } = useMasters();
+  const { auth } = useAuth();
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '20px 16px 60px' }}>
@@ -25,7 +28,8 @@ export default function EditMenuScreen({ schedule, onSelect, onClose }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <MenuButton onClick={() => onSelect('scheduleForm')}>予定の編集</MenuButton>
+        {/* 予定の編集は管理者のみ（★2026-09-23） */}
+        {isAdmin(auth.role) && <MenuButton onClick={() => onSelect('scheduleForm')}>予定の編集</MenuButton>}
         <MenuButton onClick={() => onSelect('loadingResultForm')}>積込実績を入力する</MenuButton>
         <MenuButton onClick={() => onSelect('deliveryResultForm')}>搬入実績を入力する</MenuButton>
         <MenuButton onClick={() => onSelect('bulkActions')}>この納品先へまとめて入力する</MenuButton>

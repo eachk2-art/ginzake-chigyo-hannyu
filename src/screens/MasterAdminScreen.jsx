@@ -12,6 +12,7 @@ import {
 } from '../lib/api';
 import BusyButton from '../components/BusyButton';
 import { ErrorMsg } from '../components/UI';
+import { isAdmin } from '../lib/roles';
 
 // 画面で扱うマスタと、その入力項目の定義（SCR-100）
 // type：text=文字 / num=数値 / date=日付 / ref=他マスタから選ぶ / opt=決まった選択肢
@@ -52,7 +53,7 @@ const FIELDS = {
   配送先: [ref('海面業者ID', '海面業者'), t('配送先名'), t('住所'), t('地図リンク')],
   運賃単価: [ref('運送会社ID', '運送会社'), opt('地域区分', null), num('kg単価'), date('適用開始日')],
   ログイン事業者: [
-    opt('事業者区分', ['太協', '内水面業者', '運送会社', '海面業者']),
+    opt('事業者区分', ['管理者', '太協', '内水面業者', '運送会社', '海面業者']),
     t('参照先ID'),
     t('タイル表示名'),
     num('タイル表示順'),
@@ -128,7 +129,7 @@ export default function MasterAdminScreen() {
     reloadMasters(); // 他の画面のプルダウン等にもすぐ反映する
   }
 
-  if (auth.role !== '太協') return null;
+  if (!isAdmin(auth.role)) return null;
 
   if (editing) {
     return (

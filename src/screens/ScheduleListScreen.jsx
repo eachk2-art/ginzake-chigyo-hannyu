@@ -1,18 +1,21 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
-import { getSchedules, reorderKaimenGroups } from '../lib/api';
+import { getSchedules, reorderSchedules } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, monthRange } from '../lib/dateUtils';
 import { ikebaName, vehicleLabel, carrierNameByVehicle, kaimenName, tantoushaName } from '../lib/masterLookup';
 import { representativeStatus } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge } from '../components/UI';
+import { isTaikyo } from '../lib/roles';
+import { isAdmin } from '../lib/roles';
 
 const DEFAULT_RANGE_DAYS = 13; // 今日から2週間先まで
 
 export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initialFocus }) {
   const { auth } = useAuth();
   const { masters } = useMasters();
-  const canEdit = auth.role === '太協';
+  const canEdit = isTaikyo(auth.role);
+  const canReorder = isAdmin(auth.role); // 積込順の並べ替えは管理者のみ（★2026-09-23）
 
   // 戻ってきた先が期間の外にある場合でも見えるよう、期間を必要な分だけ広げておく
   const [dateFrom, setDateFrom] = useState(() => {
@@ -64,19 +67,19 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
     load();
   }, [load]);
 
-  // 納品先（海面業者）グループの積込順を1つ上／下に入れ替える（太協のみ）。
-  // グループの中の車輌の順番はそのまま保たれる。
+  // 積込順の並べ替え（太協側のみ）。納品先（海面業者）のまとまりごと動かすことも、
+  // その中の車輌1台だけを動かすこともできる。並べ替えた結果を、その日・その池場の
+  // 全車輌の並び順としてサーバーに送り、積込順を1から振り直してもらう。
   const [orderError, setOrderError] = useState('');
   const [moving, setMoving] = useState(false);
-  async function moveKaimenGroup(dateKey, ikebaId, kaimenIds, index, dir) {
-    const target = index + dir;
-    if (target < 0 || target >= kaimenIds.length || moving) return;
-    const next = [...kaimenIds];
-    [next[index], next[target]] = [next[target], next[index]];
+
+  const flattenIds = (groups) => groups.flatMap((g) => g.items.map((s) => s['積込予定ID']));
+
+  async function applyOrder(dateKey, ikebaId, groups) {
     setOrderError('');
     setMoving(true);
     try {
-      await reorderKaimenGroups(auth, dateKey, ikebaId, next);
+      await reorderSchedules(auth, dateKey, ikebaId, flattenIds(groups));
       await load();
     } catch (e) {
       setOrderError(e.message);
@@ -85,21 +88,26 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
     }
   }
 
-  // 積込順（列が無い古いデータは積込予定IDの下2桁で暫定対応）
-  const loadingOrder = useCallback((s) => {
-    const n = Number(s['積込順']);
-    if (!isNaN(n) && s['積込順'] !== '' && s['積込順'] !== undefined) return n;
-    const parts = String(s['積込予定ID']).split('-');
-    const suffix = Number(parts[parts.length - 1]);
-    return isNaN(suffix) ? 999999 : suffix;
-  }, []);
+  // 納品先（海面業者）のまとまりを1つ上／下へ
+  function moveKaimenGroup(dateKey, ikebaId, groups, index, dir) {
+    const target = index + dir;
+    if (target < 0 || target >= groups.length || moving) return;
+    const next = [...groups];
+    [next[index], next[target]] = [next[target], next[index]];
+    applyOrder(dateKey, ikebaId, next);
+  }
 
-  // 4階層でグルーピングする：日付 → 池場 → 海面業者 → 車輌（予定）。
-  // 「1レコード＝車輌1台分」というデータの持ち方は変えず、表示側だけをまとめている。
-  // 階層1（日付）の並び順：日付の早い順。予定が無い日は、そもそもグループが作られない。
-  // 階層2（池場）の並び順：マスタ_池場の登録順
-  // 階層3（海面業者）の並び順：そのグループ内で一番早い積込順の予定を基準にする
-  // 階層4（車輌）の並び順：積込順
+  // 納品先の中で、車輌を1つ上／下へ
+  function moveVehicle(dateKey, ikebaId, groups, groupIndex, itemIndex, dir) {
+    const target = itemIndex + dir;
+    const items = groups[groupIndex].items;
+    if (target < 0 || target >= items.length || moving) return;
+    const nextItems = [...items];
+    [nextItems[itemIndex], nextItems[target]] = [nextItems[target], nextItems[itemIndex]];
+    const next = groups.map((g, i) => (i === groupIndex ? { ...g, items: nextItems } : g));
+    applyOrder(dateKey, ikebaId, next);
+  }
+
   const dateGroups = useMemo(() => {
     if (!schedules) return [];
 
@@ -335,35 +343,19 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                   </button>
 
                                   {/* 納品先の積込順の入れ替え（太協のみ） */}
-                                  {auth.role === '太協' && kaimenGroups.length > 1 && (
+                                  {canReorder && kaimenGroups.length > 1 && (
                                     <div style={{ display: 'flex', gap: 4, padding: '0 10px 0 4px' }}>
                                       <OrderButton
                                         label="▲"
                                         title="この納品先を1つ前にする"
                                         disabled={kaimenIdx === 0 || moving}
-                                        onClick={() =>
-                                          moveKaimenGroup(
-                                            dateKey,
-                                            ikebaId,
-                                            kaimenGroups.map((g) => g.kaimenId),
-                                            kaimenIdx,
-                                            -1
-                                          )
-                                        }
+                                        onClick={() => moveKaimenGroup(dateKey, ikebaId, kaimenGroups, kaimenIdx, -1)}
                                       />
                                       <OrderButton
                                         label="▼"
                                         title="この納品先を1つ後にする"
                                         disabled={kaimenIdx === kaimenGroups.length - 1 || moving}
-                                        onClick={() =>
-                                          moveKaimenGroup(
-                                            dateKey,
-                                            ikebaId,
-                                            kaimenGroups.map((g) => g.kaimenId),
-                                            kaimenIdx,
-                                            1
-                                          )
-                                        }
+                                        onClick={() => moveKaimenGroup(dateKey, ikebaId, kaimenGroups, kaimenIdx, 1)}
                                       />
                                     </div>
                                   )}
@@ -371,7 +363,7 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
 
                                 {/* 階層4：車輌（予定） */}
                                 {kaimenOpen &&
-                                  items.map((s) => (
+                                  items.map((s, itemIdx) => (
                                     <div
                                       key={s['積込予定ID']}
                                       onClick={canEdit ? () => onEditSchedule(s) : undefined}
@@ -392,7 +384,32 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                           {vehicleLabel(masters, s['車輌ID'])}
                                           （{carrierNameByVehicle(masters, s['車輌ID'])}）
                                         </span>
-                                        <StatusBadge status={s['ステータス']} />
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                          <StatusBadge status={s['ステータス']} />
+                                          {/* 車輌の積込順の入れ替え（太協側のみ・2台以上のとき） */}
+                                          {canReorder && items.length > 1 && (
+                                            <>
+                                              <OrderButton
+                                                label="▲"
+                                                title="この車輌を1つ前にする"
+                                                disabled={itemIdx === 0 || moving}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  moveVehicle(dateKey, ikebaId, kaimenGroups, kaimenIdx, itemIdx, -1);
+                                                }}
+                                              />
+                                              <OrderButton
+                                                label="▼"
+                                                title="この車輌を1つ後にする"
+                                                disabled={itemIdx === items.length - 1 || moving}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  moveVehicle(dateKey, ikebaId, kaimenGroups, kaimenIdx, itemIdx, 1);
+                                                }}
+                                              />
+                                            </>
+                                          )}
+                                        </span>
                                       </div>
                                       <div style={{ fontSize: 14, color: 'var(--c-text)', marginTop: 4 }}>
                                         予定数量：{s['予定数量kg']}kg
