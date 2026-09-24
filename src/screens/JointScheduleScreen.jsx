@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getJointScheduleMarks } from '../lib/api';
-import { today, addDays, toDateStr, formatJP, formatDateTimeJP, defaultSeasonRange } from '../lib/dateUtils';
+import { today, addDays, toDateStr, formatJP, formatDateTimeJP, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
 import { ErrorMsg, LoadingMsg } from '../components/UI';
 
 const DEFAULT_RANGE_DAYS = 13;
@@ -34,6 +34,11 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
     load();
   }, [load]);
 
+  // PDFとして保存するときのファイル名（★2026-09-24）
+  function handlePrint() {
+    printWithTitle(`${fileDateStamp(lastUpdated)}更新_横浦全体予定表`);
+  }
+
   const people = kaimenIds.map((id) => {
     const k = (masters?.海面業者 || []).find((x) => x['海面業者ID'] === id);
     return { id, name: k ? k['氏名'] : id };
@@ -49,9 +54,9 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '20px 16px 60px' }}>
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>共同予定表</h2>
+        <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>横浦地区全体予定表</h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => window.print()} style={btnStyle}>
+          <button onClick={handlePrint} style={btnStyle}>
             印刷する
           </button>
           <button onClick={onClose} style={btnStyle}>
@@ -74,7 +79,7 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
 
       {!error && marks && (
         <div className="print-area">
-          <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>共同予定表</div>
+          <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>横浦地区全体予定表</div>
           <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginBottom: 14 }}>
             {formatJP(dateFrom)} 〜 {formatJP(dateTo)}
           </div>
@@ -94,12 +99,12 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
             </div>
           </div>
 
-          {/* 表は用紙いっぱいに広げず、やや狭めにする（★2026-09-24） */}
-          <table style={{ ...tableStyle, maxWidth: 520 }}>
+          {/* 日付と氏名の列は必要な幅だけにし、残りは備考欄に回す（★2026-09-24） */}
+          <table style={tableStyle}>
             <colgroup>
-              <col style={{ width: '24%' }} />
+              <col style={{ width: '20%' }} />
               {people.map((p) => (
-                <col key={p.id} style={{ width: '16%' }} />
+                <col key={p.id} style={{ width: '13%' }} />
               ))}
               <col />
             </colgroup>

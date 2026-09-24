@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules } from '../lib/api';
-import { formatJP, formatDateTimeJP, formatTimeDigits, defaultSeasonRange } from '../lib/dateUtils';
+import { formatJP, formatDateTimeJP, formatTimeDigits, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
 import { representativeStatus } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 import { ikebaBaseName } from '../lib/masterLookup';
@@ -33,6 +33,24 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
 
   const kaimen = (masters?.海面業者 || []).find((k) => k['海面業者ID'] === kaimenId);
 
+  // ★2026-09-24：表示期間に重なるシーズンの搬入目標（マスタ_搬入目標）を拾う。
+  // 複数ある場合は開始日が新しいものを使う。
+  const target = useMemo(() => {
+    const list = (masters?.搬入目標 || [])
+      .filter((g) => g['海面業者ID'] === kaimenId)
+      .filter((g) => (!g['開始日'] || g['開始日'] <= dateTo) && (!g['終了日'] || g['終了日'] >= dateFrom))
+      .sort((a, b) => (String(a['開始日']) < String(b['開始日']) ? 1 : -1));
+    return list[0] || null;
+  }, [masters, kaimenId, dateFrom, dateTo]);
+  const targetKg = target ? Number(target['目標数量kg']) || 0 : 0;
+
+  // PDFとして保存するときのファイル名は、ブラウザがページのタイトルを使う。
+  // 印刷の間だけタイトルを差し替える（★2026-09-24）
+  function handlePrint() {
+    const name = kaimen ? kaimen['氏名'] : kaimenId;
+    printWithTitle(`${fileDateStamp(lastUpdated)}更新_${name}_予定表`);
+  }
+
   const lastUpdated = useMemo(() => {
     if (!allSchedules || allSchedules.length === 0) return null;
     const times = allSchedules.map((s) => s['更新日時']).filter(Boolean);
@@ -59,10 +77,14 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
           Boolean
         );
         const arrivalTimes = active.map((s) => s['到着予定時刻']).filter(Boolean).sort();
+        // 実際に積んだ数量（計量明細の合計）。入力済みならこちらを数量として表示する
+        const actualKg = active.reduce((sum, s) => sum + (Number(s['実績数量kg']) || 0), 0);
         return {
           date,
           status,
-          totalKg,
+          actualKg,
+          totalKg: actualKg > 0 ? actualKg : totalKg,
+          plannedKg: totalKg,
           suisan: ikebaNames.join('、'),
           arrival: arrivalTimes[0] || '',
           note: status === '納品完了' ? '終了' : '',
@@ -72,16 +94,19 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
       .sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [allSchedules, dateFrom, dateTo, masters]);
 
-  const totalKg = rows.reduce((sum, r) => sum + r.totalKg, 0);
-  const deliveredKg = rows.filter((r) => r.status === '納品完了').reduce((sum, r) => sum + r.totalKg, 0);
-  const remainingKg = totalKg - deliveredKg;
+  // 搬入済み＝納品完了した日の実績数量（実績が未入力の日は予定数量で代用）
+  const deliveredKg = rows
+    .filter((r) => r.status === '納品完了')
+    .reduce((sum, r) => sum + (r.actualKg > 0 ? r.actualKg : r.plannedKg), 0);
+  // 残数量＝搬入目標 − 搬入済み（目標を超えればマイナスになる）
+  const remainingKg = targetKg - deliveredKg;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '20px 16px 60px' }}>
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>予定表</h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => window.print()} style={btnStyle}>
+          <button onClick={handlePrint} style={btnStyle}>
             印刷する
           </button>
           <button onClick={onClose} style={btnStyle}>
@@ -141,7 +166,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
                   <tr>
                     <th style={thStyle}>日付</th>
                     <th style={thStyle}>池場</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>数量（kg）</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>数量（kg）</th>
                     <th style={{ ...thStyle, textAlign: 'center' }}>到着予定</th>
                     <th style={thStyle}>備考</th>
                   </tr>
@@ -151,7 +176,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
                     <tr key={r.date}>
                       <td style={tdStyle}>{formatJP(r.date)}</td>
                       <td style={tdStyle}>{r.suisan}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right' }}>{r.totalKg.toLocaleString()}</td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>{r.totalKg.toLocaleString()}</td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}>
                         {r.arrival ? formatTimeDigits(r.arrival.replace(':', '')) : ''}
                       </td>
@@ -172,15 +197,28 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
                     <td style={{ ...tdStyle, fontWeight: 700 }} colSpan={2}>
                       合計
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700 }}>{totalKg.toLocaleString()}</td>
+                    <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700 }}>
+                      {rows.reduce((sum, r) => sum + r.totalKg, 0).toLocaleString()}
+                    </td>
                     <td style={tdStyle} colSpan={2} />
                   </tr>
                 </tbody>
               </table>
 
-              <div style={{ marginTop: 14, fontSize: 14 }}>
-                合計 {totalKg.toLocaleString()}kg　／　搬入済み {deliveredKg.toLocaleString()}kg　／　予定{' '}
-                {remainingKg.toLocaleString()}kg
+              {/* ★2026-09-24：搬入目標・搬入済み・残数量を大きく表示する */}
+              <div
+                style={{
+                  marginTop: 18,
+                  display: 'flex',
+                  gap: 28,
+                  flexWrap: 'wrap',
+                  fontSize: 20,
+                  fontWeight: 700,
+                }}
+              >
+                <span>搬入目標数量 {targetKg > 0 ? `${targetKg.toLocaleString()}kg` : '未設定'}</span>
+                <span>搬入済み数量 {deliveredKg.toLocaleString()}kg</span>
+                <span>残数量 {targetKg > 0 ? `${remainingKg.toLocaleString()}kg` : '―'}</span>
               </div>
             </>
           )}

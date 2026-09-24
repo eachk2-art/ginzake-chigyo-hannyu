@@ -15,7 +15,7 @@ export default function KaimenPickerScreen({ onSelectKaimen, onSelectJoint }) {
           onClick={() => onSelectJoint(yokouraIds)}
           style={{ ...rowStyle, marginBottom: 16, borderColor: 'var(--c-accent)' }}
         >
-          横浦地区 共同予定表 ›
+          横浦地区全体予定表 ›
         </button>
       )}
 

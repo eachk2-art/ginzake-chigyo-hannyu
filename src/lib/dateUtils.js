@@ -99,3 +99,25 @@ export function formatDateTimeJP(str) {
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${y}年${m}月${day}日 ${hh}:${mm}`;
 }
+
+/**
+ * 印刷（PDF保存）用に、一時的にページのタイトルを差し替えてから印刷する。
+ * ブラウザは「PDFに保存」のファイル名にページのタイトルを使うため（★2026-09-24）。
+ */
+export function printWithTitle(title) {
+  const original = document.title;
+  document.title = title;
+  const restore = () => {
+    document.title = original;
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  window.print();
+  setTimeout(restore, 3000); // afterprintが動かないブラウザ向けの保険
+}
+
+/** 印刷ファイル名用に "yyyyMMdd" を作る（更新日時が無ければ今日の日付） */
+export function fileDateStamp(dateTimeStr) {
+  const src = dateTimeStr || toDateStr(today());
+  return String(src).replace(/[^0-9]/g, '').slice(0, 8);
+}

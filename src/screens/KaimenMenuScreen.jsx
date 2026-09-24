@@ -32,7 +32,7 @@ export default function KaimenMenuScreen({ onSelect }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <MenuButton onClick={() => onSelect('schedule')}>予定表</MenuButton>
-        {isYokoura && <MenuButton onClick={() => onSelect('joint')}>共同予定表（横浦地区）</MenuButton>}
+        {isYokoura && <MenuButton onClick={() => onSelect('joint')}>横浦地区全体予定表</MenuButton>}
       </div>
     </div>
   );
