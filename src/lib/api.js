@@ -147,6 +147,18 @@ export const bulkConfirmDelivery = (auth, scheduleIds) =>
 export const getJointScheduleMarks = (auth, kaimenIds, dateFrom, dateTo) =>
   callAction('getJointScheduleMarks', { kaimenIds, dateFrom, dateTo }, auth);
 
+// ---- 運賃（SCR-060）。閲覧は太協も可、金額の修正・締めは管理者のみ ----
+export const getFareSummary = (auth, dateFrom, dateTo, qtyMode, carrierId) =>
+  callAction('getFareSummary', { dateFrom, dateTo, qtyMode, carrierId }, auth);
+export const setScheduleFare = (auth, scheduleId, billedFare, reason, note) =>
+  callAction('setScheduleFare', { scheduleId, billedFare, reason, note }, auth);
+export const listFareClosings = (auth) => callAction('listFareClosings', {}, auth);
+export const closeFares = (auth, dateFrom, dateTo, qtyMode, title) =>
+  callAction('closeFares', { dateFrom, dateTo, qtyMode, title }, auth);
+export const reopenFares = (auth, closingId) => callAction('reopenFares', { closingId }, auth);
+export const exportFares = (auth, dateFrom, dateTo, qtyMode, carrierId, scope, format) =>
+  callAction('exportFares', { dateFrom, dateTo, qtyMode, carrierId, scope, format }, auth);
+
 // ---- マスタ管理（SCR-100、太協のみ。PHP版でのみ使える） ----
 export const adminListMaster = (auth, master, includeDeleted = true) =>
   callAction('adminListMaster', { master, includeDeleted }, auth);

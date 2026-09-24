@@ -16,6 +16,7 @@ import JointScheduleScreen from './screens/JointScheduleScreen';
 import KaimenMenuScreen from './screens/KaimenMenuScreen';
 import ContactsScreen from './screens/ContactsScreen';
 import MasterAdminScreen from './screens/MasterAdminScreen';
+import FareScreen from './screens/FareScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import NavBar from './components/NavBar';
 import { isAdmin, isTaikyo } from './lib/roles';
@@ -137,6 +138,8 @@ function MainShell() {
       {screen === 'changeLog' && isAdmin(auth.role) && <ChangeLogScreen />}
 
       {screen === 'masterAdmin' && isAdmin(auth.role) && <MasterAdminScreen />}
+
+      {screen === 'fares' && isTaikyo(auth.role) && <FareScreen />}
 
       {screen === 'contacts' && (isTaikyo(auth.role) || auth.role === '運送会社') && <ContactsScreen />}
 

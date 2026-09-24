@@ -6,7 +6,10 @@ const ITEMS = [
   { key: 'home', label: 'ホーム' },
   { key: 'scheduleList', label: '積込予定一覧' },
 ];
-const TAIKYO_ITEMS = [{ key: 'kaimenPicker', label: '予定表' }];
+const TAIKYO_ITEMS = [
+  { key: 'kaimenPicker', label: '予定表' },
+  { key: 'fares', label: '運賃' },
+];
 const ADMIN_ONLY_ITEMS = [
   { key: 'changeLog', label: '変更履歴' },
   { key: 'masterAdmin', label: 'マスタ管理' },
