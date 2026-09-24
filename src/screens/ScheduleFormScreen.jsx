@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
-import { createSchedule, updateSchedule, cancelSchedule, bulkCreateSchedule } from '../lib/api';
+import { createSchedule, updateSchedule, cancelSchedule, deleteSchedule, bulkCreateSchedule } from '../lib/api';
 import { ErrorMsg } from '../components/UI';
 import BusyButton from '../components/BusyButton';
 import TimeField from '../components/TimeField';
@@ -159,6 +159,18 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
       } else {
         await createSchedule(auth, data);
       }
+      onSaved?.();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  // 取消にした予定を一覧から消す（管理者のみ。データはDBに残る）
+  async function handleDeleteSchedule() {
+    setError('');
+    if (!window.confirm('この取消予定を一覧から削除しますか？\n\n一覧・ホーム画面に表示されなくなります。（データはデータベースに残るので、必要なら戻せます）')) return;
+    try {
+      await deleteSchedule(auth, initial['積込予定ID']);
       onSaved?.();
     } catch (e) {
       setError(e.message);
@@ -453,10 +465,15 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
             積込実績を入力する
           </BusyButton>
         )}
-        {/* 予定の取消は管理者のみ（★2026-09-23） */}
-        {isEdit && isAdmin(auth.role) && (
+        {/* 予定の取消は管理者のみ（★2026-09-23）。取消済みの予定は、管理者だけが一覧から削除できる（★2026-09-24） */}
+        {isEdit && isAdmin(auth.role) && initial['予定状態'] !== '取消' && (
           <BusyButton variant="danger" onClick={() => setShowCancelPanel((v) => !v)}>
             この予定を取消にする
+          </BusyButton>
+        )}
+        {isEdit && isAdmin(auth.role) && initial['予定状態'] === '取消' && (
+          <BusyButton variant="danger" onClick={handleDeleteSchedule}>
+            この取消予定を一覧から削除する
           </BusyButton>
         )}
       </div>

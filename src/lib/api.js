@@ -101,6 +101,8 @@ export const updateSchedule = (auth, scheduleId, data) =>
   callAction('updateSchedule', { scheduleId, data }, auth);
 export const cancelSchedule = (auth, scheduleId, reason) =>
   callAction('cancelSchedule', { scheduleId, reason }, auth);
+// 取消にした予定を一覧から消す（管理者のみ。データは削除フラグで残る）
+export const deleteSchedule = (auth, scheduleId) => callAction('deleteSchedule', { scheduleId }, auth);
 export const bulkCreateSchedule = (auth, dataList) =>
   callAction('bulkCreateSchedule', { dataList }, auth);
 // 積込順の並べ替え（納品先のまとまり・車輌のどちらの入れ替えにも使う）

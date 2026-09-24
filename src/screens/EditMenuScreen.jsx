@@ -8,6 +8,8 @@ import { isAdmin } from '../lib/roles';
 export default function EditMenuScreen({ schedule, onSelect, onClose }) {
   const { masters } = useMasters();
   const { auth } = useAuth();
+  // 納品完了の予定は、管理者以外は実績の入力・修正ができない
+  const locked = schedule['ステータス'] === '納品完了' && !isAdmin(auth.role);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '20px 16px 60px' }}>
@@ -27,12 +29,33 @@ export default function EditMenuScreen({ schedule, onSelect, onClose }) {
         )}
       </div>
 
+      {/* 納品完了になった予定は、管理者以外は実績を触れない（★2026-09-24） */}
+      {locked && (
+        <div
+          style={{
+            background: 'var(--c-bg-2)',
+            border: '1px solid var(--c-border-2)',
+            borderRadius: 10,
+            padding: '12px 16px',
+            fontSize: 14,
+            color: 'var(--c-text-2)',
+            marginBottom: 16,
+          }}
+        >
+          この予定は納品完了です。内容の修正が必要な場合は管理者に依頼してください。
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* 予定の編集は管理者のみ（★2026-09-23） */}
         {isAdmin(auth.role) && <MenuButton onClick={() => onSelect('scheduleForm')}>予定の編集</MenuButton>}
-        <MenuButton onClick={() => onSelect('loadingResultForm')}>積込実績を入力する</MenuButton>
-        <MenuButton onClick={() => onSelect('deliveryResultForm')}>搬入実績を入力する</MenuButton>
-        <MenuButton onClick={() => onSelect('bulkActions')}>この納品先へまとめて入力する</MenuButton>
+        {!locked && (
+          <>
+            <MenuButton onClick={() => onSelect('loadingResultForm')}>積込実績を入力する</MenuButton>
+            <MenuButton onClick={() => onSelect('deliveryResultForm')}>搬入実績を入力する</MenuButton>
+            <MenuButton onClick={() => onSelect('bulkActions')}>この納品先へまとめて入力する</MenuButton>
+          </>
+        )}
       </div>
     </div>
   );
