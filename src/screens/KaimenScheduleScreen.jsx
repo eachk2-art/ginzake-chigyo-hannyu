@@ -77,14 +77,11 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
           Boolean
         );
         const arrivalTimes = active.map((s) => s['到着予定時刻']).filter(Boolean).sort();
-        // 実際に積んだ数量（計量明細の合計）。入力済みならこちらを数量として表示する
-        const actualKg = active.reduce((sum, s) => sum + (Number(s['実績数量kg']) || 0), 0);
+        // ★2026-09-24：数量は実績ではなく、あくまで予定数量の合計で表示・集計する
         return {
           date,
           status,
-          actualKg,
-          totalKg: actualKg > 0 ? actualKg : totalKg,
-          plannedKg: totalKg,
+          totalKg,
           suisan: ikebaNames.join('、'),
           arrival: arrivalTimes[0] || '',
           note: status === '納品完了' ? '終了' : '',
@@ -94,10 +91,8 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
       .sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [allSchedules, dateFrom, dateTo, masters]);
 
-  // 搬入済み＝納品完了した日の実績数量（実績が未入力の日は予定数量で代用）
-  const deliveredKg = rows
-    .filter((r) => r.status === '納品完了')
-    .reduce((sum, r) => sum + (r.actualKg > 0 ? r.actualKg : r.plannedKg), 0);
+  // 搬入済み＝納品完了した日の予定数量の合計
+  const deliveredKg = rows.filter((r) => r.status === '納品完了').reduce((sum, r) => sum + r.totalKg, 0);
   // 残数量＝搬入目標 − 搬入済み（目標を超えればマイナスになる）
   const remainingKg = targetKg - deliveredKg;
 
@@ -208,11 +203,11 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
               {/* ★2026-09-24：搬入目標・搬入済み・残数量を大きく表示する */}
               <div
                 style={{
-                  marginTop: 18,
+                  marginTop: 16,
                   display: 'flex',
-                  gap: 28,
+                  gap: 22,
                   flexWrap: 'wrap',
-                  fontSize: 20,
+                  fontSize: 15,
                   fontWeight: 700,
                 }}
               >
@@ -252,18 +247,22 @@ const tableStyle = {
   width: '100%',
   tableLayout: 'fixed',
   borderCollapse: 'collapse',
-  fontSize: 15,
+  fontSize: 16,
 };
 
+// ★2026-09-24：印刷したときに読みやすいよう、見出し・本文とも濃く・太くする
 const thStyle = {
   textAlign: 'left',
   padding: '8px 10px',
   borderBottom: '2px solid var(--c-border-2)',
-  color: 'var(--c-text-2)',
-  fontSize: 13,
+  color: 'var(--c-text)',
+  fontSize: 14,
+  fontWeight: 700,
 };
 
 const tdStyle = {
   padding: '8px 10px',
   borderBottom: '1px solid var(--c-border)',
+  color: 'var(--c-text)',
+  fontWeight: 600,
 };

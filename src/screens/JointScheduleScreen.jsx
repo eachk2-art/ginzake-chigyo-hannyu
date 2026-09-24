@@ -7,7 +7,7 @@ import { ErrorMsg, LoadingMsg } from '../components/UI';
 
 const DEFAULT_RANGE_DAYS = 13;
 // 印刷したときにA4縦1枚の体裁になるよう、表は最低この行数で組む
-const MIN_PRINT_ROWS = 15;
+const MIN_PRINT_ROWS = 20;
 
 export default function JointScheduleScreen({ kaimenIds, onClose }) {
   const { auth } = useAuth();
@@ -174,18 +174,22 @@ const tableStyle = {
   width: '100%',
   tableLayout: 'fixed',
   borderCollapse: 'collapse',
-  fontSize: 15,
+  fontSize: 16,
 };
 
+// ★2026-09-24：印刷したときに読みやすいよう、見出し・本文とも濃く・太くする
 const thStyle = {
   textAlign: 'left',
   padding: '8px 10px',
   borderBottom: '2px solid var(--c-border-2)',
-  color: 'var(--c-text-2)',
-  fontSize: 13,
+  color: 'var(--c-text)',
+  fontSize: 14,
+  fontWeight: 700,
 };
 
 const tdStyle = {
   padding: '8px 10px',
   borderBottom: '1px solid var(--c-border)',
+  color: 'var(--c-text)',
+  fontWeight: 600,
 };
