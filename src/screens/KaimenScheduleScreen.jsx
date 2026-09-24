@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules } from '../lib/api';
-import { formatJP, formatDateTimeJP, formatTimeDigits, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
+import { formatJP, formatSlashJP, formatDateTimeJP, formatTimeDigits, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
 import { representativeStatus } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 import { ikebaBaseName } from '../lib/masterLookup';
@@ -91,6 +91,9 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
       .sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [allSchedules, dateFrom, dateTo, masters]);
 
+  // 備考に記入がある行が1つでもあるか（列幅の配分に使う）★2026-09-24
+  const hasNote = rows.some((r) => r.note);
+
   // 搬入済み＝納品完了した日の予定数量の合計
   const deliveredKg = rows.filter((r) => r.status === '納品完了').reduce((sum, r) => sum + r.totalKg, 0);
   // 残数量＝搬入目標 − 搬入済み（目標を超えればマイナスになる）
@@ -149,13 +152,14 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
           {rows.length > 0 && (
             <>
               <table style={tableStyle}>
-                {/* ★2026-09-24：日付と数量を広げ、到着予定は中央寄せ、余った分を備考へ */}
+                {/* ★2026-09-24：備考に記入がある場合だけ備考欄を広くとり、
+                    無い場合は池場の列を広げる（池場名＋事業者名で長くなるため） */}
                 <colgroup>
-                  <col style={{ width: '22%' }} />
                   <col style={{ width: '18%' }} />
+                  <col style={{ width: hasNote ? '28%' : '44%' }} />
                   <col style={{ width: '18%' }} />
                   <col style={{ width: '14%' }} />
-                  <col style={{ width: '28%' }} />
+                  <col style={{ width: hasNote ? '22%' : '6%' }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -169,7 +173,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.date}>
-                      <td style={tdStyle}>{formatJP(r.date)}</td>
+                      <td style={tdStyle}>{formatSlashJP(r.date)}</td>
                       <td style={tdStyle}>{r.suisan}</td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}>{r.totalKg.toLocaleString()}</td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}>

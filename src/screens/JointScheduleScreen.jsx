@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getJointScheduleMarks } from '../lib/api';
-import { today, addDays, toDateStr, formatJP, formatDateTimeJP, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
+import { today, addDays, toDateStr, formatJP, formatSlashJP, formatDateTimeJP, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
 import { ErrorMsg, LoadingMsg } from '../components/UI';
 
 const DEFAULT_RANGE_DAYS = 13;
@@ -99,14 +99,13 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
             </div>
           </div>
 
-          {/* 日付と氏名の列は必要な幅だけにし、残りは備考欄に回す（★2026-09-24） */}
+          {/* ★2026-09-24：備考欄は設けず、日付以外は氏名の列で等分する */}
           <table style={tableStyle}>
             <colgroup>
-              <col style={{ width: '20%' }} />
+              <col style={{ width: '25%' }} />
               {people.map((p) => (
-                <col key={p.id} style={{ width: '13%' }} />
+                <col key={p.id} />
               ))}
-              <col />
             </colgroup>
             <thead>
               <tr>
@@ -116,30 +115,26 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
                     {p.name}
                   </th>
                 ))}
-                {/* ★2026-09-24：手書きで書き込める備考欄 */}
-                <th style={thStyle}>備考</th>
               </tr>
             </thead>
             <tbody>
               {days.map((date) => (
                 <tr key={date}>
-                  <td style={tdStyle}>{formatJP(date)}</td>
+                  <td style={tdStyle}>{formatSlashJP(date)}</td>
                   {people.map((p) => (
                     <td key={p.id} style={{ ...tdStyle, textAlign: 'center', fontSize: 18 }}>
                       {marks[date] && marks[date][p.id] ? '○' : ''}
                     </td>
                   ))}
-                  <td style={tdStyle} />
                 </tr>
               ))}
-              {/* 用紙に収まる形を保つため、15行になるまで空行を足す（★2026-09-24） */}
+              {/* 用紙に収まる形を保つため、20行になるまで空行を足す（★2026-09-24） */}
               {Array.from({ length: Math.max(0, MIN_PRINT_ROWS - days.length) }).map((_, i) => (
                 <tr key={`blank-${i}`}>
                   <td style={tdStyle}>&nbsp;</td>
                   {people.map((p) => (
                     <td key={p.id} style={tdStyle} />
                   ))}
-                  <td style={tdStyle} />
                 </tr>
               ))}
             </tbody>

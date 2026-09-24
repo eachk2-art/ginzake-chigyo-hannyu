@@ -27,6 +27,12 @@ export function formatJP(date) {
   return `${d.getMonth() + 1}月${d.getDate()}日（${DOW_JP[d.getDay()]}）`;
 }
 
+/** 予定表の表用：M/D（曜） 例）11/1（土）★2026-09-24追加 */
+export function formatSlashJP(date) {
+  const d = new Date(date);
+  return `${d.getMonth() + 1}/${d.getDate()}（${DOW_JP[d.getDay()]}）`;
+}
+
 export function sameDay(a, b) {
   const da = new Date(a);
   const db = new Date(b);

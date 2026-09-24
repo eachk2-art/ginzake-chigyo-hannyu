@@ -117,6 +117,20 @@ textarea {
   body {
     zoom: 1 !important;
   }
+  /* ★2026-09-24：画面用の 100vh・余白がそのまま残ると、中身の無い2ページ目が
+     できてしまうため、印刷中は高さと余白を持たせない */
+  html,
+  body,
+  #root,
+  #root * {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  #root > div {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
   .print-area {
     font-size: 11pt;
   }
