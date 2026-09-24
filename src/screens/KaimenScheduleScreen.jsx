@@ -5,13 +5,7 @@ import { getSchedules } from '../lib/api';
 import { formatJP, formatDateTimeJP, formatTimeDigits, defaultSeasonRange } from '../lib/dateUtils';
 import { representativeStatus } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
-
-function suisanNameOfIkeba(masters, ikebaId) {
-  const p = (masters?.池場 || []).find((x) => x['池場ID'] === ikebaId);
-  if (!p) return '';
-  const u = (masters?.内水面業者 || []).find((x) => x['内水面業者ID'] === p['内水面業者ID']);
-  return u ? u['略称'] || u['内水面業者名'] : '';
-}
+import { ikebaBaseName } from '../lib/masterLookup';
 
 // 印刷したときにA4縦1枚の体裁になるよう、表は最低この行数で組む
 const MIN_PRINT_ROWS = 15;
@@ -60,7 +54,8 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
         const status = representativeStatus(items);
         const active = items.filter((s) => s['ステータス'] !== '取消');
         const totalKg = active.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
-        const suisanNames = Array.from(new Set(active.map((s) => suisanNameOfIkeba(masters, s['池場ID'])))).filter(
+        // ★2026-09-24：内水面業者名ではなく池場名を表示する
+        const ikebaNames = Array.from(new Set(active.map((s) => ikebaBaseName(masters, s['池場ID'])))).filter(
           Boolean
         );
         const arrivalTimes = active.map((s) => s['到着予定時刻']).filter(Boolean).sort();
@@ -68,7 +63,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
           date,
           status,
           totalKg,
-          suisan: suisanNames.join('、'),
+          suisan: ikebaNames.join('、'),
           arrival: arrivalTimes[0] || '',
           note: status === '納品完了' ? '終了' : '',
         };
@@ -134,19 +129,20 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
           {rows.length > 0 && (
             <>
               <table style={tableStyle}>
+                {/* ★2026-09-24：日付と数量を広げ、到着予定は中央寄せ、余った分を備考へ */}
                 <colgroup>
-                  <col style={{ width: '16%' }} />
                   <col style={{ width: '22%' }} />
                   <col style={{ width: '18%' }} />
-                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '14%' }} />
                   <col style={{ width: '28%' }} />
                 </colgroup>
                 <thead>
                   <tr>
                     <th style={thStyle}>日付</th>
-                    <th style={thStyle}>内水面</th>
+                    <th style={thStyle}>池場</th>
                     <th style={{ ...thStyle, textAlign: 'right' }}>数量（kg）</th>
-                    <th style={thStyle}>到着予定</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>到着予定</th>
                     <th style={thStyle}>備考</th>
                   </tr>
                 </thead>
@@ -156,7 +152,9 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
                       <td style={tdStyle}>{formatJP(r.date)}</td>
                       <td style={tdStyle}>{r.suisan}</td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{r.totalKg.toLocaleString()}</td>
-                      <td style={tdStyle}>{r.arrival ? formatTimeDigits(r.arrival.replace(':', '')) : ''}</td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        {r.arrival ? formatTimeDigits(r.arrival.replace(':', '')) : ''}
+                      </td>
                       <td style={tdStyle}>{r.note}</td>
                     </tr>
                   ))}

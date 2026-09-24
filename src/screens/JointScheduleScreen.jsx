@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getJointScheduleMarks } from '../lib/api';
-import { today, addDays, toDateStr, formatJP, defaultSeasonRange } from '../lib/dateUtils';
+import { today, addDays, toDateStr, formatJP, formatDateTimeJP, defaultSeasonRange } from '../lib/dateUtils';
 import { ErrorMsg, LoadingMsg } from '../components/UI';
 
 const DEFAULT_RANGE_DAYS = 13;
@@ -16,13 +16,17 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
   const [dateFrom, setDateFrom] = useState(() => defaultSeasonRange().from);
   const [dateTo, setDateTo] = useState(() => defaultSeasonRange().to);
   const [marks, setMarks] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null); // ★2026-09-24：個別の予定表と同じく最終更新を出す
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
     setMarks(null);
     setError('');
     getJointScheduleMarks(auth, kaimenIds, dateFrom, dateTo)
-      .then((res) => setMarks(res.marks))
+      .then((res) => {
+        setMarks(res.marks);
+        setLastUpdated(res.lastUpdated || null);
+      })
       .catch((e) => setError(e.message));
   }, [auth, kaimenIds, dateFrom, dateTo]);
 
@@ -71,11 +75,34 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
       {!error && marks && (
         <div className="print-area">
           <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>共同予定表</div>
-          <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginBottom: 16 }}>
+          <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginBottom: 14 }}>
             {formatJP(dateFrom)} 〜 {formatJP(dateTo)}
           </div>
+          <div
+            style={{
+              background: 'var(--c-bg-2)',
+              border: '1px solid var(--c-border)',
+              borderRadius: 12,
+              padding: '10px 16px',
+              marginBottom: 18,
+              display: 'inline-block',
+            }}
+          >
+            <div style={{ fontSize: 12, color: 'var(--c-text-3)' }}>最終更新</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginTop: 2 }}>
+              {lastUpdated ? formatDateTimeJP(lastUpdated) : '更新履歴はまだありません'}
+            </div>
+          </div>
 
-          <table style={tableStyle}>
+          {/* 表は用紙いっぱいに広げず、やや狭めにする（★2026-09-24） */}
+          <table style={{ ...tableStyle, maxWidth: 520 }}>
+            <colgroup>
+              <col style={{ width: '24%' }} />
+              {people.map((p) => (
+                <col key={p.id} style={{ width: '16%' }} />
+              ))}
+              <col />
+            </colgroup>
             <thead>
               <tr>
                 <th style={thStyle}>日付</th>
@@ -84,6 +111,8 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
                     {p.name}
                   </th>
                 ))}
+                {/* ★2026-09-24：手書きで書き込める備考欄 */}
+                <th style={thStyle}>備考</th>
               </tr>
             </thead>
             <tbody>
@@ -95,6 +124,7 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
                       {marks[date] && marks[date][p.id] ? '○' : ''}
                     </td>
                   ))}
+                  <td style={tdStyle} />
                 </tr>
               ))}
               {/* 用紙に収まる形を保つため、15行になるまで空行を足す（★2026-09-24） */}
@@ -104,6 +134,7 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
                   {people.map((p) => (
                     <td key={p.id} style={tdStyle} />
                   ))}
+                  <td style={tdStyle} />
                 </tr>
               ))}
             </tbody>
