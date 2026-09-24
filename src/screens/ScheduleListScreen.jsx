@@ -67,6 +67,15 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
     load();
   }, [load]);
 
+  // 積込順（列が無い古いデータは積込予定IDの下2桁で暫定対応）
+  const loadingOrder = useCallback((s) => {
+    const n = Number(s['積込順']);
+    if (!isNaN(n) && s['積込順'] !== '' && s['積込順'] !== undefined) return n;
+    const parts = String(s['積込予定ID']).split('-');
+    const suffix = Number(parts[parts.length - 1]);
+    return isNaN(suffix) ? 999999 : suffix;
+  }, []);
+
   // 積込順の並べ替え（太協側のみ）。納品先（海面業者）のまとまりごと動かすことも、
   // その中の車輌1台だけを動かすこともできる。並べ替えた結果を、その日・その池場の
   // 全車輌の並び順としてサーバーに送り、積込順を1から振り直してもらう。
