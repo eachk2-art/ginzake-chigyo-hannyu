@@ -5,7 +5,7 @@ import { getSchedules, reorderSchedules } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, monthRange } from '../lib/dateUtils';
 import { ikebaName, vehicleLabel, carrierNameByVehicle, kaimenName, tantoushaName } from '../lib/masterLookup';
 import { representativeStatus } from '../lib/statusUtils';
-import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge } from '../components/UI';
+import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge, statusAccentColor } from '../components/UI';
 import { isTaikyo } from '../lib/roles';
 import { isAdmin } from '../lib/roles';
 
@@ -319,8 +319,15 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                             const kaimenOpen = openKaimen.has(kaimenKey);
                             return (
                               <div key={kaimenId} style={{ borderTop: '1px solid var(--c-border)' }}>
-                                {/* 階層3：海面業者（生産者） */}
-                                <div style={{ display: 'flex', alignItems: 'center', background: 'var(--c-bg-3)' }}>
+                                {/* 階層3：海面業者（生産者）。色はホーム画面の第2層と同じ緑系（★2026-09-24） */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    background: 'var(--c-ok-bg)',
+                                    borderLeft: `5px solid ${statusAccentColor(kaimenStatus)}`,
+                                  }}
+                                >
                                   <button
                                     onClick={() => toggleKaimen(kaimenKey)}
                                     style={{
@@ -328,10 +335,10 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                       display: 'flex',
                                       justifyContent: 'space-between',
                                       alignItems: 'center',
-                                      padding: '10px 16px 10px 32px',
+                                      padding: '10px 16px 10px 27px',
                                       background: 'transparent',
                                       border: 'none',
-                                      color: 'var(--c-text)',
+                                      color: 'var(--c-ok)',
                                       fontSize: 14,
                                       fontWeight: 700,
                                       cursor: 'pointer',
@@ -343,9 +350,9 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                       {kaimenName(masters, kaimenId)}
                                       <StatusBadge status={kaimenStatus} />
                                     </span>
-                                    <span style={{ fontSize: 14, color: 'var(--c-text)', fontWeight: 700 }}>
+                                    <span style={{ fontSize: 14, fontWeight: 700 }}>
                                       合計 {activeCount}台・{kaimenTotalKg.toLocaleString()}kg{' '}
-                                      <span style={{ color: 'var(--c-text-3)', fontWeight: 400 }}>
+                                      <span style={{ opacity: 0.8, fontWeight: 400 }}>
                                         {kaimenOpen ? '▲' : '▼'}
                                       </span>
                                     </span>
@@ -379,6 +386,7 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                       style={{
                                         padding: '10px 16px 10px 40px',
                                         borderTop: '1px solid var(--c-border)',
+                                        background: 'var(--c-warn-bg)',
                                         cursor: canEdit ? 'pointer' : 'default',
                                       }}
                                     >

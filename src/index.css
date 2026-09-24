@@ -111,6 +111,26 @@ textarea {
   .no-print {
     display: none !important;
   }
+  /* ★2026-09-24：画面は zoom:1.2 で拡大表示しているが、印刷では等倍に戻して
+     A4縦1枚に収める。表の行間も印刷用に詰める。 */
+  html,
+  body {
+    zoom: 1 !important;
+  }
+  .print-area {
+    font-size: 11pt;
+  }
+  .print-area table {
+    width: 100%;
+    page-break-inside: auto;
+  }
+  .print-area tr {
+    page-break-inside: avoid;
+  }
+  .print-area th,
+  .print-area td {
+    padding: 4px 8px !important;
+  }
   @page {
     size: A4 portrait;
     margin: 15mm;

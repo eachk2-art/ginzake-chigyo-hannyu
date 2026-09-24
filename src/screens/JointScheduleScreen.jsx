@@ -6,6 +6,8 @@ import { today, addDays, toDateStr, formatJP, defaultSeasonRange } from '../lib/
 import { ErrorMsg, LoadingMsg } from '../components/UI';
 
 const DEFAULT_RANGE_DAYS = 13;
+// 印刷したときにA4縦1枚の体裁になるよう、表は最低この行数で組む
+const MIN_PRINT_ROWS = 15;
 
 export default function JointScheduleScreen({ kaimenIds, onClose }) {
   const { auth } = useAuth();
@@ -33,9 +35,11 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
     return { id, name: k ? k['氏名'] : id };
   });
 
+  // ★2026-09-24：期間内の全日ではなく、誰かの予定が入っている日だけを行にする
   const days = [];
   for (let d = new Date(dateFrom.replace(/-/g, '/')); toDateStr(d) <= dateTo; d = addDays(d, 1)) {
-    days.push(toDateStr(d));
+    const date = toDateStr(d);
+    if (marks && marks[date] && people.some((p) => marks[date][p.id])) days.push(date);
   }
 
   return (
@@ -90,6 +94,15 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
                     <td key={p.id} style={{ ...tdStyle, textAlign: 'center', fontSize: 18 }}>
                       {marks[date] && marks[date][p.id] ? '○' : ''}
                     </td>
+                  ))}
+                </tr>
+              ))}
+              {/* 用紙に収まる形を保つため、15行になるまで空行を足す（★2026-09-24） */}
+              {Array.from({ length: Math.max(0, MIN_PRINT_ROWS - days.length) }).map((_, i) => (
+                <tr key={`blank-${i}`}>
+                  <td style={tdStyle}>&nbsp;</td>
+                  {people.map((p) => (
+                    <td key={p.id} style={tdStyle} />
                   ))}
                 </tr>
               ))}

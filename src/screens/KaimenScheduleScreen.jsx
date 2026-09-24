@@ -13,6 +13,9 @@ function suisanNameOfIkeba(masters, ikebaId) {
   return u ? u['略称'] || u['内水面業者名'] : '';
 }
 
+// 印刷したときにA4縦1枚の体裁になるよう、表は最低この行数で組む
+const MIN_PRINT_ROWS = 15;
+
 export default function KaimenScheduleScreen({ kaimenId, onClose }) {
   const { auth } = useAuth();
   const { masters } = useMasters();
@@ -155,6 +158,16 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{r.totalKg.toLocaleString()}</td>
                       <td style={tdStyle}>{r.arrival ? formatTimeDigits(r.arrival.replace(':', '')) : ''}</td>
                       <td style={tdStyle}>{r.note}</td>
+                    </tr>
+                  ))}
+                  {/* 用紙に収まる形を保つため、15行になるまで空行を足す（★2026-09-24） */}
+                  {Array.from({ length: Math.max(0, MIN_PRINT_ROWS - rows.length) }).map((_, i) => (
+                    <tr key={`blank-${i}`}>
+                      <td style={tdStyle}>&nbsp;</td>
+                      <td style={tdStyle} />
+                      <td style={tdStyle} />
+                      <td style={tdStyle} />
+                      <td style={tdStyle} />
                     </tr>
                   ))}
                   <tr>
