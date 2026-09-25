@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { createSchedule, updateSchedule, cancelSchedule, deleteSchedule, bulkCreateSchedule } from '../lib/api';
@@ -6,6 +6,7 @@ import { ErrorMsg } from '../components/UI';
 import BusyButton from '../components/BusyButton';
 import TimeField from '../components/TimeField';
 import { isAdmin } from '../lib/roles';
+import { kaimenName } from '../lib/masterLookup';
 
 const OTHER_TANTOUSHA = '__OTHER__';
 
@@ -187,6 +188,21 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
     }
   }
 
+  // ★2026-09-25：配送先は、選んだ海面業者に登録されているものだけを出す。
+  // （同じ場所でも業者ごとに1件ずつ登録されているため、そのままだと同じ名前が並ぶ）
+  // その業者の配送先が無いときは、全件から選べるようにし、業者名を添えて区別する。
+  const deliveryAll = masters?.配送先 || [];
+  const deliveryMine = deliveryAll.filter((d) => d['海面業者ID'] === form.海面業者ID);
+  const deliveryFiltered = form.海面業者ID !== '' && deliveryMine.length > 0;
+  const deliveryOptions = deliveryFiltered ? deliveryMine : deliveryAll;
+
+  // 海面業者を変えたときは、その業者に合わない配送先を選んだままにしない
+  useEffect(() => {
+    if (!deliveryFiltered) return;
+    const ok = deliveryMine.some((d) => d['配送先ID'] === form.配送先ID);
+    if (!ok) set('配送先ID', deliveryMine.length === 1 ? deliveryMine[0]['配送先ID'] : '');
+  }, [form.海面業者ID, deliveryFiltered]);
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '20px 16px 60px' }}>
       <h2 style={{ fontSize: 19, fontWeight: 700, margin: '0 0 18px' }}>
@@ -264,9 +280,10 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
       <Field label="配送先">
         <select value={form.配送先ID} onChange={(e) => set('配送先ID', e.target.value)} style={inputStyle}>
           <option value="">選択してください</option>
-          {(masters?.配送先 || []).map((d) => (
+          {deliveryOptions.map((d) => (
             <option key={d['配送先ID']} value={d['配送先ID']}>
               {d['配送先名']}
+              {deliveryFiltered ? '' : `（${kaimenName(masters, d['海面業者ID'])}）`}
             </option>
           ))}
         </select>

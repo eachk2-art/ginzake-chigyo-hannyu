@@ -381,6 +381,9 @@ export default function FareScreen() {
                           <div style={{ fontWeight: 700 }}>
                             {r['精算運賃'] === '' ? '―' : `${Number(r['精算運賃']).toLocaleString()}円`}
                           </div>
+                          {r['計算できない理由'] && (
+                            <div style={{ ...subStyle, color: 'var(--c-warn)' }}>{r['計算できない理由']}</div>
+                          )}
                           {adjusted && (
                             <div style={{ ...subStyle, color: 'var(--c-warn)' }}>
                               調整{r['調整理由'] ? `：${r['調整理由']}` : ''}
