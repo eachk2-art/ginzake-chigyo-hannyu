@@ -7,6 +7,7 @@ const ITEMS = [
   { key: 'scheduleList', label: '積込予定一覧' },
 ];
 const TAIKYO_ITEMS = [
+  { key: 'fleetCheck', label: '配車チェック' },
   { key: 'kaimenPicker', label: '予定表' },
   { key: 'fares', label: '運賃' },
 ];

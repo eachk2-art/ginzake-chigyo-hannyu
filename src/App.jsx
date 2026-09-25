@@ -17,6 +17,7 @@ import KaimenMenuScreen from './screens/KaimenMenuScreen';
 import ContactsScreen from './screens/ContactsScreen';
 import MasterAdminScreen from './screens/MasterAdminScreen';
 import FareScreen from './screens/FareScreen';
+import FleetCheckScreen from './screens/FleetCheckScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import NavBar from './components/NavBar';
 import { isAdmin, isTaikyo } from './lib/roles';
@@ -140,6 +141,10 @@ function MainShell() {
       {screen === 'masterAdmin' && isAdmin(auth.role) && <MasterAdminScreen />}
 
       {screen === 'fares' && isTaikyo(auth.role) && <FareScreen />}
+
+      {screen === 'fleetCheck' && isTaikyo(auth.role) && (
+        <FleetCheckScreen onEditSchedule={(s) => openEditMenu(s, 'fleetCheck')} />
+      )}
 
       {screen === 'contacts' && (isTaikyo(auth.role) || auth.role === '運送会社') && <ContactsScreen />}
 
