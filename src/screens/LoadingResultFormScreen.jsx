@@ -137,6 +137,7 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
           id: d['積込実績明細ID'],
           池場ID: d['池場ID'] || schedule['池場ID'],
           実績数量kg: d['実績数量kg'] ?? '',
+          平均サイズg: d['平均サイズg'] ?? '',
         }));
     }
     return []; // 初期表示では1回目を自動で用意せず、「＋計量明細を追加」から入力してもらう
@@ -150,7 +151,7 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
   const snapshotOf = (h, rs, sel, free) =>
     JSON.stringify({
       h,
-      rs: rs.map((r) => [r.id || null, r['池場ID'] || '', String(r['実績数量kg'] ?? '')]),
+      rs: rs.map((r) => [r.id || null, r['池場ID'] || '', String(r['実績数量kg'] ?? ''), String(r['平均サイズg'] ?? '')]),
       sel,
       free,
     });
@@ -162,15 +163,60 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
   function setRow(i, key, val) {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
   }
+
+  /**
+   * 平均サイズは、変えた回以降にも自動で反映する（★2026-09-25）。
+   * 例：3回目を25gに直すと、それまで同じ値が入っていた4回目以降も25gになる。
+   * すでに別の値を手で入れてある回は、そのまま残す。
+   */
+  function setRowSize(i, val) {
+    setRows((rs) => {
+      const prev = rs[i]['平均サイズg'];
+      return rs.map((r, idx) => {
+        if (idx === i) return { ...r, 平均サイズg: val };
+        if (idx > i && String(r['平均サイズg']) === String(prev)) return { ...r, 平均サイズg: val };
+        return r;
+      });
+    });
+  }
+
   function addRow() {
     if (rows.length >= maxDetails) return;
-    setRows((rs) => [...rs, { id: null, 池場ID: schedule['池場ID'], 実績数量kg: '' }]);
+    setRows((rs) => {
+      // 直前の回の平均サイズを引き継ぐ（池で計量したサイズは途中まで同じことが多い）
+      const lastSize = [...rs].reverse().find((r) => String(r['平均サイズg'] || '') !== '');
+      return [
+        ...rs,
+        {
+          id: null,
+          池場ID: schedule['池場ID'],
+          実績数量kg: '',
+          平均サイズg: lastSize ? lastSize['平均サイズg'] : '',
+        },
+      ];
+    });
   }
   function removeRow(i) {
     setRows((rs) => rs.filter((_, idx) => idx !== i));
   }
 
   const totalKg = rows.reduce((sum, r) => sum + (Number(r['実績数量kg']) || 0), 0);
+
+  // ★2026-09-25：稚魚の尾数
+  // ・水槽（回次）ごと：計量値 ÷ 平均サイズ ＝ 暫定尾数
+  // ・全体の平均サイズ ＝ 計量合計（入れ目込み）÷ 暫定尾数の合計
+  // ・便全体の尾数 ＝ 予定数量 ÷ 全体の平均サイズ
+  // 計算は丸めずに行い、表示のときだけ平均サイズは小数第1位、尾数は整数で切り捨てる
+  const rowFish = rows.map((r) => {
+    const kg = Number(r['実績数量kg']) || 0;
+    const size = Number(r['平均サイズg']) || 0;
+    return kg > 0 && size > 0 ? (kg * 1000) / size : 0;
+  });
+  const totalFishRaw = rowFish.reduce((sum, n) => sum + n, 0);
+  const avgSizeRaw = totalFishRaw > 0 ? (totalKg * 1000) / totalFishRaw : 0;
+  const plannedKg = Number(schedule['予定数量kg']) || 0;
+  const tripFish = avgSizeRaw > 0 && plannedKg > 0 ? Math.floor((plannedKg * 1000) / avgSizeRaw) : 0;
+  const avgSizeShown = avgSizeRaw > 0 ? Math.floor(avgSizeRaw * 10) / 10 : 0;
 
   // 目標は「予定数量kg × (1 + 予定入れ目率/100)」を毎回その場で計算する。
   // 保存済みの「予定計量数量kg」に頼らないのは、一括登録などで
@@ -266,6 +312,7 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
           id: d['積込実績明細ID'],
           池場ID: d['池場ID'],
           実績数量kg: d['実績数量kg'] ?? '',
+          平均サイズg: d['平均サイズg'] ?? '',
         }));
       setRows(newRows);
       setSavedSnapshot(snapshotOf(header, newRows, tantoushaSel, tantoushaFree));
@@ -483,16 +530,54 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
           <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginBottom: 10 }}>
             池場：{ikebaName(masters, r['池場ID'])}
           </div>
-          <Field label="実績数量（kg）">
-            <input
-              type="number"
-              value={r['実績数量kg']}
-              onChange={(e) => setRow(i, '実績数量kg', e.target.value)}
-              style={inputStyle}
-            />
-          </Field>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Field label="実績数量（kg）" style={{ flex: 1, minWidth: 130 }}>
+              <input
+                type="number"
+                value={r['実績数量kg']}
+                onChange={(e) => setRow(i, '実績数量kg', e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="平均サイズ（g）" style={{ flex: 1, minWidth: 130 }}>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={r['平均サイズg']}
+                onChange={(e) => setRowSize(i, e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+          </div>
+          {rowFish[i] > 0 && (
+            <div style={{ fontSize: 13, color: 'var(--c-text-2)', marginTop: 2 }}>
+              この回の尾数：約 {Math.floor(rowFish[i]).toLocaleString()}尾
+            </div>
+          )}
         </div>
       ))}
+
+      {totalFishRaw > 0 && (
+        <div
+          style={{
+            border: '1px solid var(--c-border-2)',
+            borderRadius: 10,
+            padding: '12px 14px',
+            marginBottom: 10,
+            background: 'var(--c-bg-2)',
+            fontSize: 14,
+            lineHeight: 1.9,
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 2 }}>この便の尾数</div>
+          <div>
+            計量合計 {totalKg.toLocaleString()}kg（入れ目込み）／ 予定数量 {plannedKg.toLocaleString()}kg
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>
+            {tripFish.toLocaleString()}尾　平均 {avgSizeShown}g
+          </div>
+        </div>
+      )}
 
       {rows.length < maxDetails && (
         <button

@@ -81,6 +81,7 @@ export default function DeliveryResultFormScreen({ schedule, onSaved, onClose })
           masters={masters}
           schedule={schedule}
           resultId={detail.result['積込実績ID']}
+          details={detail.details}
           delivery={delivery}
           onLocalSave={setDelivery}
           onSaved={onSaved}
@@ -91,7 +92,7 @@ export default function DeliveryResultFormScreen({ schedule, onSaved, onClose })
   );
 }
 
-function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLocalSave, onSaved, onClose }) {
+function DeliveryResultForm({ auth, masters, schedule, resultId, details, delivery, onLocalSave, onSaved, onClose }) {
   const isEdit = !!delivery;
 
   const taikyoTantousha = useMemo(
@@ -104,6 +105,7 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
 
   const [form, setForm] = useState({
     搬入日: delivery?.['搬入日'] || schedule['積込日'] || '',
+    生簀ID: delivery?.['生簀ID'] || '',
     浜到着時刻: delivery?.['浜到着時刻'] || '',
     作業開始時刻: delivery?.['作業開始時刻'] || '',
     作業終了時刻: delivery?.['作業終了時刻'] || '',
@@ -125,6 +127,33 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
   // ★2026-09-22追加：保存した時点の入力内容と今の入力内容が同じ間は「✓ 保存済み」表示にする
   const [savedSnapshot, setSavedSnapshot] = useState(null);
   const snapshotOf = (f, sel, free) => JSON.stringify({ f, sel, free });
+
+  // ★2026-09-25：積込実績の計量明細から、この便の尾数と平均サイズを求めて表示する
+  // （計算の考え方は積込実績入力と同じ。計量合計は入れ目込み、尾数は予定数量から出す）
+  const fishInfo = useMemo(() => {
+    const list = details || [];
+    const measuredKg = list.reduce((sum, d) => sum + (Number(d['実績数量kg']) || 0), 0);
+    const fishRaw = list.reduce((sum, d) => {
+      const kg = Number(d['実績数量kg']) || 0;
+      const size = Number(d['平均サイズg']) || 0;
+      return sum + (kg > 0 && size > 0 ? (kg * 1000) / size : 0);
+    }, 0);
+    if (fishRaw <= 0) return null;
+    const avgRaw = (measuredKg * 1000) / fishRaw;
+    const plannedKg = Number(schedule['予定数量kg']) || 0;
+    return {
+      measuredKg,
+      plannedKg,
+      fish: plannedKg > 0 ? Math.floor((plannedKg * 1000) / avgRaw) : 0,
+      avg: Math.floor(avgRaw * 10) / 10,
+    };
+  }, [details, schedule]);
+
+  // その海面業者に登録されている生簀（マスタ_生簀）
+  const ikesuOptions = useMemo(
+    () => (masters?.生簀 || []).filter((k) => k['海面業者ID'] === schedule['海面業者ID']),
+    [masters, schedule]
+  );
   const isSaved = savedSnapshot !== null && savedSnapshot === snapshotOf(form, tantoushaSel, tantoushaFree);
 
   const [showConfirmPanel, setShowConfirmPanel] = useState(false);
@@ -196,8 +225,49 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, delivery, onLoc
 
   return (
     <div>
+      {fishInfo && (
+        <div
+          style={{
+            border: '1px solid var(--c-border-2)',
+            background: 'var(--c-bg-2)',
+            borderRadius: 10,
+            padding: '12px 14px',
+            marginBottom: 16,
+            fontSize: 14,
+            lineHeight: 1.9,
+          }}
+        >
+          <div style={{ fontWeight: 700 }}>この便の内容</div>
+          <div>
+            計量合計 {fishInfo.measuredKg.toLocaleString()}kg（入れ目込み）／ 予定数量{' '}
+            {fishInfo.plannedKg.toLocaleString()}kg
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>
+            {fishInfo.fish.toLocaleString()}尾　平均 {fishInfo.avg}g
+          </div>
+        </div>
+      )}
+
       <Field label="搬入日">
         <input type="date" value={form.搬入日} onChange={(e) => setF('搬入日', e.target.value)} style={inputStyle} />
+      </Field>
+
+      <Field label="生簀（後から入力しても構いません）">
+        <select value={form.生簀ID} onChange={(e) => setF('生簀ID', e.target.value)} style={inputStyle}>
+          <option value="">未選択</option>
+          {ikesuOptions.map((k) => (
+            <option key={k['生簀ID']} value={k['生簀ID']}>
+              {k['生簀No']}
+              {k['通称'] ? `（${k['通称']}）` : ''}
+              {k['規格'] ? `　${k['規格']}` : ''}
+            </option>
+          ))}
+        </select>
+        {ikesuOptions.length === 0 && (
+          <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginTop: 4 }}>
+            この海面業者の生簀がマスタに登録されていません（マスタ管理から追加できます）
+          </div>
+        )}
       </Field>
 
       <YesNoField label="到着確認" value={form.到着確認} onChange={(v) => setF('到着確認', v)} />

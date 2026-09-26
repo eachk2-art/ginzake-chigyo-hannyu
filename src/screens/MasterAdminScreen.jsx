@@ -25,6 +25,7 @@ const MASTERS = [
   { name: '海面業者', idKey: '海面業者ID', nameKey: '氏名', sub: ['屋号', '所在地', '連絡先'], parent: null },
   { name: '配送先', idKey: '配送先ID', nameKey: '配送先名', sub: ['海面業者ID', '住所'], parent: '海面業者ID' },
   { name: '運賃単価', idKey: '運賃単価ID', nameKey: '運送会社ID', sub: ['地域区分', 'kg単価', '適用開始日'], parent: '運送会社ID' },
+  { name: '生簀', idKey: '生簀ID', nameKey: '通称', sub: ['海面業者ID', '生簀No', '規格'], parent: '海面業者ID' },
   { name: '搬入目標', idKey: '搬入目標ID', nameKey: 'シーズン', sub: ['海面業者ID', '目標数量kg', '開始日', '終了日'], parent: '海面業者ID' },
   { name: 'ログイン事業者', idKey: 'ログイン事業者ID', nameKey: 'タイル表示名', sub: ['事業者区分', '参照先ID', '有効フラグ'], parent: null },
 ];
@@ -53,6 +54,7 @@ const FIELDS = {
   海面業者: [t('氏名'), t('屋号'), t('所在地'), t('連絡先')],
   配送先: [ref('海面業者ID', '海面業者'), t('配送先名'), t('住所'), t('地図リンク')],
   運賃単価: [ref('運送会社ID', '運送会社'), opt('地域区分', null), num('kg単価'), date('適用開始日')],
+  生簀: [ref('海面業者ID', '海面業者'), num('生簀No'), t('通称'), t('規格'), t('備考')],
   搬入目標: [ref('海面業者ID', '海面業者'), t('シーズン'), num('目標数量kg'), date('開始日'), date('終了日')],
   ログイン事業者: [
     opt('事業者区分', ['管理者', '太協', '内水面業者', '運送会社', '海面業者']),
