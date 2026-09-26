@@ -168,6 +168,8 @@ export const adminCreateMaster = (auth, master, data, pin = null) =>
   callAction('adminCreateMaster', pin === null ? { master, data } : { master, data, pin }, auth);
 export const adminUpdateMaster = (auth, master, id, data) =>
   callAction('adminUpdateMaster', { master, id, data }, auth);
+export const adminBulkSaveMaster = (auth, master, rows) =>
+  callAction('adminBulkSaveMaster', { master, rows }, auth);
 export const adminSetDeleted = (auth, master, id, deleted) =>
   callAction('adminSetDeleted', { master, id, deleted }, auth);
 export const adminCheckUsage = (auth, master, id) =>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import {
+  adminBulkSaveMaster,
   adminListMaster,
   adminSuggestId,
   adminCreateMaster,
@@ -92,6 +93,7 @@ export default function MasterAdminScreen() {
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [editing, setEditing] = useState(null); // { mode: 'new' | 'edit', data }
+  const [view, setView] = useState('list'); // list＝1件ずつの一覧 ／ table＝表でまとめて編集
   const [error, setError] = useState('');
 
   const meta = MASTERS.find((m) => m.name === masterName);
@@ -150,6 +152,23 @@ export default function MasterAdminScreen() {
     );
   }
 
+  if (view === 'table') {
+    return (
+      <MasterTable
+        auth={auth}
+        masters={masters}
+        meta={meta}
+        rows={rows}
+        error={error}
+        onError={setError}
+        onReload={afterSave}
+        onBack={() => setView('list')}
+        masterName={masterName}
+        onChangeMaster={setMasterName}
+      />
+    );
+  }
+
   return (
     <div style={{ padding: 16, maxWidth: 900, margin: '0 auto' }}>
       <h2 style={{ fontSize: 20, margin: '4px 0 14px' }}>マスタ管理</h2>
@@ -188,6 +207,9 @@ export default function MasterAdminScreen() {
           削除済みも表示
         </label>
         <BusyButton onClick={() => setEditing({ mode: 'new', data: {} })}>＋ 新規追加</BusyButton>
+        <BusyButton variant="ghost" onClick={() => setView('table')}>
+          表でまとめて編集
+        </BusyButton>
       </div>
 
       <ErrorMsg message={error} />
@@ -451,3 +473,216 @@ function MasterForm({ auth, masters, meta, rows, mode, initial, onSaved, onClose
     </div>
   );
 }
+
+/**
+ * 表形式でまとめて編集する画面（★2026-09-26、管理者のみ）。
+ * ・セルを直接書き換え、一番下の空行に入力すると新しい行になる
+ * ・変更した行にだけ印が付き、「まとめて保存」で一括登録する
+ * ・削除・復元とPIN再設定は、これまでどおり「一覧」から行う
+ * ・横に広がるため、パソコンでの利用を想定している
+ */
+function MasterTable({ auth, masters, meta, rows, error, onError, onReload, onBack, masterName, onChangeMaster }) {
+  const fields = FIELDS[meta.name];
+  const [draft, setDraft] = useState([]);
+  const [message, setMessage] = useState('');
+
+  // 元データが読み込まれたら、編集用の行に写す（削除済みは表に出さない）
+  useEffect(() => {
+    const base = (rows || [])
+      .filter((r) => !r['削除フラグ'])
+      .map((r) => {
+        const row = { __id: r[meta.idKey], __changed: false };
+        fields.forEach((f) => {
+          row[f.key] = r[f.key] ?? '';
+        });
+        return row;
+      });
+    setDraft([...base, emptyRow(fields)]);
+    setMessage('');
+    // eslint-disable-next-line
+  }, [rows, meta.name]);
+
+  function setCell(i, key, val) {
+    setDraft((ds) => {
+      const next = ds.map((d, idx) => (idx === i ? { ...d, [key]: val, __changed: true } : d));
+      // 最終行に入力されたら、その下に新しい空行を足す
+      const last = next[next.length - 1];
+      if (last.__changed) next.push(emptyRow(fields));
+      return next;
+    });
+  }
+
+  const changed = draft.filter((d) => d.__changed && fields.some((f) => String(d[f.key] ?? '') !== ''));
+
+  async function save() {
+    onError('');
+    setMessage('');
+    if (changed.length === 0) {
+      setMessage('変更はありません');
+      return;
+    }
+    try {
+      const payload = changed.map((d) => {
+        const row = {};
+        if (d.__id) row[meta.idKey] = d.__id;
+        fields.forEach((f) => {
+          row[f.key] = d[f.key] ?? '';
+        });
+        return row;
+      });
+      const res = await adminBulkSaveMaster(auth, meta.name, payload);
+      setMessage(`保存しました（追加${res['追加']}件・更新${res['更新']}件）`);
+      await onReload();
+    } catch (e) {
+      onError(e.message);
+    }
+  }
+
+  function optionsOf(f) {
+    if (f.options) return f.options;
+    const values = Array.from(new Set((rows || []).map((r) => r[f.key]).filter(Boolean)));
+    return ['', ...values];
+  }
+
+  function refRows(name) {
+    return (masters?.[name] || []).filter((r) => !r['削除フラグ']);
+  }
+
+  return (
+    <div style={{ padding: 16, margin: '0 auto' }}>
+      <h2 style={{ fontSize: 20, margin: '4px 0 10px' }}>マスタ管理（表で編集）</h2>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+        {MASTERS.map((m) => (
+          <button
+            key={m.name}
+            onClick={() => onChangeMaster(m.name)}
+            style={{
+              padding: '8px 14px',
+              minHeight: 42,
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              border: '1px solid var(--c-border-2)',
+              background: masterName === m.name ? 'var(--c-accent)' : 'transparent',
+              color: masterName === m.name ? '#03202e' : 'var(--c-text)',
+              cursor: 'pointer',
+            }}
+          >
+            {m.name}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginBottom: 10, lineHeight: 1.8 }}>
+        セルを直接書き換えられます。一番下の空いている行に入力すると新しい行になり、IDは自動で振られます。
+        <br />
+        削除・復元とPINの再設定は「一覧」から行ってください。
+      </div>
+
+      <ErrorMsg message={error} />
+      {message && <div style={{ color: 'var(--c-ok)', fontSize: 14, marginBottom: 10 }}>{message}</div>}
+
+      <div style={{ overflowX: 'auto', border: '1px solid var(--c-border)', borderRadius: 10 }}>
+        <table style={{ borderCollapse: 'collapse', minWidth: 720, background: 'var(--c-bg-2)' }}>
+          <thead>
+            <tr>
+              <th style={thCell}>{meta.idKey}</th>
+              {fields.map((f) => (
+                <th key={f.key} style={thCell}>
+                  {f.key}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {draft.map((d, i) => (
+              <tr key={d.__id || `new-${i}`} style={{ background: d.__changed ? 'var(--c-warn-bg)' : 'transparent' }}>
+                <td style={{ ...tdCell, color: 'var(--c-text-3)', whiteSpace: 'nowrap' }}>
+                  {d.__id || (d.__changed ? '（自動採番）' : '')}
+                </td>
+                {fields.map((f) => (
+                  <td key={f.key} style={tdCell}>
+                    {f.type === 'ref' ? (
+                      <select value={d[f.key] ?? ''} onChange={(e) => setCell(i, f.key, e.target.value)} style={cellInput}>
+                        <option value="">―</option>
+                        {refRows(f.master).map((r) => {
+                          const value = Object.values(r)[0];
+                          const label = REF_LABEL[f.master] ? REF_LABEL[f.master](r) : value;
+                          return (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    ) : f.type === 'opt' ? (
+                      <select value={d[f.key] ?? ''} onChange={(e) => setCell(i, f.key, e.target.value)} style={cellInput}>
+                        {optionsOf(f).map((o) => (
+                          <option key={o} value={o}>
+                            {o === '' ? '―' : o}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.type === 'date' ? 'date' : f.type === 'num' ? 'number' : 'text'}
+                        value={d[f.key] ?? ''}
+                        onChange={(e) => setCell(i, f.key, e.target.value)}
+                        style={cellInput}
+                      />
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+        <BusyButton onClick={save}>まとめて保存（{changed.length}行）</BusyButton>
+        <BusyButton variant="ghost" onClick={onBack}>
+          一覧に戻る
+        </BusyButton>
+      </div>
+    </div>
+  );
+}
+
+function emptyRow(fields) {
+  const row = { __id: '', __changed: false };
+  fields.forEach((f) => {
+    row[f.key] = '';
+  });
+  return row;
+}
+
+const thCell = {
+  textAlign: 'left',
+  padding: '8px 10px',
+  borderBottom: '2px solid var(--c-border-2)',
+  fontSize: 13,
+  fontWeight: 700,
+  whiteSpace: 'nowrap',
+  color: 'var(--c-text)',
+};
+
+const tdCell = {
+  padding: '4px 6px',
+  borderBottom: '1px solid var(--c-border)',
+  fontSize: 14,
+};
+
+const cellInput = {
+  width: '100%',
+  minWidth: 110,
+  minHeight: 38,
+  padding: '6px 8px',
+  fontSize: 14,
+  background: 'var(--c-bg)',
+  color: 'var(--c-text)',
+  border: '1px solid var(--c-border-2)',
+  borderRadius: 6,
+  boxSizing: 'border-box',
+};
