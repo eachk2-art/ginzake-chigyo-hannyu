@@ -284,7 +284,11 @@ function LoadingResultForm({ auth, masters, schedule, result, details, onLocalSa
       実際の内水面立会者ID: buildTantoushaId(),
     };
     const detailData = rows.map((r) => {
-      const d = { 池場ID: r['池場ID'], 実績数量kg: r['実績数量kg'] };
+      const d = {
+        池場ID: r['池場ID'],
+        実績数量kg: r['実績数量kg'],
+        平均サイズg: r['平均サイズg'] ?? '',
+      };
       if (r.id) d['積込実績明細ID'] = r.id;
       return d;
     });
