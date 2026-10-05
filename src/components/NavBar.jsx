@@ -14,6 +14,7 @@ const TAIKYO_ITEMS = [
 const ADMIN_ONLY_ITEMS = [
   { key: 'changeLog', label: '変更履歴' },
   { key: 'masterAdmin', label: 'マスタ管理' },
+  { key: 'entryQr', label: '入口QR' },
 ];
 const CONTACTS_ITEM = { key: 'contacts', label: '連絡先' };
 const LOCATIONS_ITEM = { key: 'locations', label: '池場・搬入先' };

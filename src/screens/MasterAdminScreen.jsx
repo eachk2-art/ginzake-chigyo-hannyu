@@ -28,7 +28,7 @@ const MASTERS = [
   { name: '運賃単価', idKey: '運賃単価ID', nameKey: '運送会社ID', sub: ['地域区分', 'kg単価', '適用開始日'], parent: '運送会社ID' },
   { name: '生簀', idKey: '生簀ID', nameKey: '通称', sub: ['海面業者ID', '生簀No', '規格'], parent: '海面業者ID' },
   { name: '搬入目標', idKey: '搬入目標ID', nameKey: 'シーズン', sub: ['海面業者ID', '目標数量kg', '開始日', '終了日'], parent: '海面業者ID' },
-  { name: 'ログイン事業者', idKey: 'ログイン事業者ID', nameKey: 'タイル表示名', sub: ['事業者区分', '参照先ID', '有効フラグ'], parent: null },
+  { name: 'ログイン事業者', idKey: 'ログイン事業者ID', nameKey: 'タイル表示名', sub: ['事業者区分', '参照先ID', '入口キー', '有効フラグ'], parent: null },
 ];
 
 const t = (key) => ({ key, type: 'text' });
@@ -62,6 +62,7 @@ const FIELDS = {
     t('参照先ID'),
     t('タイル表示名'),
     num('タイル表示順'),
+    t('入口キー'),
     opt('有効フラグ', ['有効', '']),
   ],
 };

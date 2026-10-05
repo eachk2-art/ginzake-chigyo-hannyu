@@ -18,6 +18,7 @@ import ContactsScreen from './screens/ContactsScreen';
 import MasterAdminScreen from './screens/MasterAdminScreen';
 import FareScreen from './screens/FareScreen';
 import FleetCheckScreen from './screens/FleetCheckScreen';
+import EntryQrScreen from './screens/EntryQrScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import NavBar from './components/NavBar';
 import { isAdmin, isTaikyo } from './lib/roles';
@@ -139,6 +140,8 @@ function MainShell() {
       {screen === 'changeLog' && isAdmin(auth.role) && <ChangeLogScreen />}
 
       {screen === 'masterAdmin' && isAdmin(auth.role) && <MasterAdminScreen />}
+
+      {screen === 'entryQr' && isAdmin(auth.role) && <EntryQrScreen />}
 
       {screen === 'fares' && isTaikyo(auth.role) && <FareScreen />}
 

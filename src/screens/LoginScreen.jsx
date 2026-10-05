@@ -13,9 +13,16 @@ export default function LoginScreen() {
   const [pin, setPin] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  // ★2026-09-26：URLの ?e=キー で、その事業者だけのログイン画面にする。
+  // 太協・管理者のキーのときだけ、これまでどおり全事業者のタイルが並ぶ。
   useEffect(() => {
-    getLoginTiles()
-      .then(setTiles)
+    const entryKey = new URLSearchParams(window.location.search).get('e') || '';
+    getLoginTiles(entryKey)
+      .then((list) => {
+        setTiles(list);
+        // 1事業者だけの入口なら、タイルを選ぶ手間を省いてPIN入力から始める
+        if (list.length === 1) setSelected(list[0]);
+      })
       .catch((e) => setLoadError(e.message));
   }, []);
 
@@ -48,7 +55,8 @@ export default function LoginScreen() {
   if (loadError) {
     return (
       <CenterScreen>
-        <ErrorMsg message={`事業者一覧の取得に失敗しました：${loadError}`} />
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>稚魚搬入管理</div>
+        <ErrorMsg message={loadError} />
       </CenterScreen>
     );
   }
@@ -70,9 +78,12 @@ export default function LoginScreen() {
         <PinPad value={pin} onChange={setPin} />
         <ErrorMsg message={loginError} />
         <div style={{ display: 'flex', gap: 12, marginTop: 24, width: '100%', maxWidth: 300 }}>
-          <BusyButton variant="ghost" onClick={backToTiles} style={{ flex: 1 }}>
-            戻る
-          </BusyButton>
+          {/* 1事業者だけの入口では「戻る」先が無いので出さない */}
+          {tiles.length > 1 && (
+            <BusyButton variant="ghost" onClick={backToTiles} style={{ flex: 1 }}>
+              戻る
+            </BusyButton>
+          )}
           <BusyButton variant="primary" onClick={handleLogin} style={{ flex: 1 }}>
             ログイン
           </BusyButton>

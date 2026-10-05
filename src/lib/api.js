@@ -86,7 +86,8 @@ function isRetryable_(e) {
 }
 
 // ---- 認証（ログイン前なのでauthなしで呼ぶ） ----
-export const getLoginTiles = () => callAction('getLoginTiles');
+// 入口キー（URLの ?e=）で、表示する事業者を出し分ける
+export const getLoginTiles = (entryKey) => callAction('getLoginTiles', { entryKey });
 export const login = (loginId, pin) => callAction('login', { loginId, pin });
 
 // ---- マスタ ----
