@@ -12,11 +12,11 @@ export default function LoginScreen() {
   const [selected, setSelected] = useState(null);
   const [pin, setPin] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [entryKey] = useState(() => new URLSearchParams(window.location.search).get('e') || '');
 
   // ★2026-09-26：URLの ?e=キー で、その事業者だけのログイン画面にする。
   // 太協・管理者のキーのときだけ、これまでどおり全事業者のタイルが並ぶ。
   useEffect(() => {
-    const entryKey = new URLSearchParams(window.location.search).get('e') || '';
     getLoginTiles(entryKey)
       .then((list) => {
         setTiles(list);
@@ -24,7 +24,7 @@ export default function LoginScreen() {
         if (list.length === 1) setSelected(list[0]);
       })
       .catch((e) => setLoadError(e.message));
-  }, []);
+  }, [entryKey]);
 
   function selectTile(tile) {
     setSelected(tile);
@@ -39,12 +39,13 @@ export default function LoginScreen() {
   }
 
   async function handleLogin() {
-    if (pin.length !== 6) {
+    // 通常は6桁。太協・管理者の入口では、確認用の8桁マスターPINも使える
+    if (pin.length !== 6 && pin.length !== 8) {
       setLoginError('6桁の数字を入力してください');
       return;
     }
     try {
-      const result = await login(selected.loginId, pin);
+      const result = await login(selected.loginId, pin, entryKey);
       setAuth(result);
     } catch (e) {
       setLoginError(e.message);
@@ -75,7 +76,8 @@ export default function LoginScreen() {
         <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 24 }}>
           {selected.tileName} のPINを入力
         </div>
-        <PinPad value={pin} onChange={setPin} />
+        {/* 太協・管理者の入口では、確認用の8桁マスターPINも入力できるようにする */}
+        <PinPad value={pin} onChange={setPin} maxLength={tiles.length > 1 ? 8 : 6} />
         <ErrorMsg message={loginError} />
         <div style={{ display: 'flex', gap: 12, marginTop: 24, width: '100%', maxWidth: 300 }}>
           {/* 1事業者だけの入口では「戻る」先が無いので出さない */}

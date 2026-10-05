@@ -93,6 +93,23 @@ function MainShell() {
 
   return (
     <div>
+      {auth.review && (
+        <div
+          style={{
+            background: 'var(--c-warn-bg)',
+            color: 'var(--c-warn)',
+            border: '1px solid var(--c-warn)',
+            borderRadius: 10,
+            padding: '8px 14px',
+            margin: '10px 12px 0',
+            fontSize: 14,
+            fontWeight: 700,
+          }}
+        >
+          確認用ログイン中です（{auth.tileName}の見え方）。登録・修正はできません。
+        </div>
+      )}
+
       <NavBar screen={screen} onChange={handleNavChange} />
 
       {screen === 'home' && (

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import {
+  setMasterPin,
+  getMasterPinStatus,
   adminBulkSaveMaster,
   adminListMaster,
   adminSuggestId,
@@ -173,6 +175,8 @@ export default function MasterAdminScreen() {
   return (
     <div style={{ padding: 16, maxWidth: 900, margin: '0 auto' }}>
       <h2 style={{ fontSize: 20, margin: '4px 0 14px' }}>マスタ管理</h2>
+
+      <MasterPinPanel auth={auth} />
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
         {MASTERS.map((m) => (
@@ -687,3 +691,84 @@ const cellInput = {
   borderRadius: 6,
   boxSizing: 'border-box',
 };
+
+/**
+ * 確認用マスターPIN（★2026-09-28、管理者のみ）。
+ * ・8桁の数字。太協・管理者の入口から入ったときだけ、どの事業者のタイルにも使える
+ * ・この状態では登録・修正はできない（見え方の確認だけ）
+ * ・設定した値は表示できない（ハッシュ化して保存するため）。忘れたら設定し直す
+ */
+function MasterPinPanel({ auth }) {
+  const [status, setStatus] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [pin, setPin] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getMasterPinStatus(auth)
+      .then(setStatus)
+      .catch(() => setStatus(null));
+  }, [auth]);
+
+  async function save() {
+    setError('');
+    setMessage('');
+    try {
+      await setMasterPin(auth, pin);
+      setMessage('確認用PINを設定しました');
+      setPin('');
+      setStatus(await getMasterPinStatus(auth));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        background: 'var(--c-bg-2)',
+        border: '1px solid var(--c-border)',
+        borderRadius: 10,
+        padding: '10px 14px',
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>確認用PIN（8桁）</span>
+        <span style={{ fontSize: 13, color: 'var(--c-text-3)' }}>
+          {status ? (status['設定済み'] ? `設定済み（${status['更新日時']}）` : '未設定') : ''}
+        </span>
+        <span style={{ flex: 1 }} />
+        <BusyButton variant="ghost" onClick={() => setOpen((v) => !v)}>
+          {open ? '閉じる' : '設定する'}
+        </BusyButton>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginBottom: 8, lineHeight: 1.8 }}>
+            太協・管理者の入口から入ったときだけ、どの事業者のタイルにもこのPINでログインできます
+            （見え方の確認用。登録・修正はできません）。各事業者の入口では使えません。
+            <br />
+            設定した値は表示できません。忘れたときは、新しい番号を設定し直してください。
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 8))}
+              inputMode="numeric"
+              placeholder="例：24681357"
+              style={{ ...inputStyle, width: 180 }}
+            />
+            <BusyButton onClick={save} disabled={pin.length !== 8}>
+              保存する
+            </BusyButton>
+          </div>
+          <ErrorMsg message={error} />
+          {message && <div style={{ color: 'var(--c-ok)', fontSize: 14, marginTop: 8 }}>{message}</div>}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -88,7 +88,10 @@ function isRetryable_(e) {
 // ---- 認証（ログイン前なのでauthなしで呼ぶ） ----
 // 入口キー（URLの ?e=）で、表示する事業者を出し分ける
 export const getLoginTiles = (entryKey) => callAction('getLoginTiles', { entryKey });
-export const login = (loginId, pin) => callAction('login', { loginId, pin });
+// 入口キーも渡す（太協・管理者の入口からだけ、確認用マスターPINが使える）
+export const login = (loginId, pin, entryKey) => callAction('login', { loginId, pin, entryKey });
+export const setMasterPin = (auth, newPin) => callAction('setMasterPin', { newPin }, auth);
+export const getMasterPinStatus = (auth) => callAction('getMasterPinStatus', {}, auth);
 
 // ---- マスタ ----
 export const getMasters = (auth) => callAction('getMasters', {}, auth);
