@@ -160,6 +160,17 @@ textarea {
   .print-area .bar-plan {
     background: #cfd8dc !important;
   }
+  /* ★2026-11-06：集計は列が多いため、印刷時の余白と字を詰めてA4縦1枚に収める */
+  .print-area table.dash {
+    font-size: 9pt;
+    table-layout: fixed;
+  }
+  .print-area table.dash th,
+  .print-area table.dash td {
+    padding: 2px 3px !important;
+    white-space: nowrap;
+    overflow: hidden;
+  }
   @page {
     size: A4 portrait;
     margin: 20mm;

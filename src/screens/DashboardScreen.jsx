@@ -182,7 +182,18 @@ export default function DashboardScreen({ onClose }) {
               正味＝入れ目を含まない数量（予定数量）／込み＝入れ目を含む計量値
             </span>
           </SectionTitle>
-          <table style={tableStyle}>
+          <table className="dash" style={tableStyle}>
+            <colgroup>
+                <col style={{ width: '19%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '6%' }} />
+                <col style={{ width: '6%' }} />
+            </colgroup>
             <thead>
               <tr>
                 <th style={th}>業者</th>
@@ -190,7 +201,16 @@ export default function DashboardScreen({ onClose }) {
                 <th style={thR}>搬入済kg</th>
                 <th style={thR}>残kg</th>
                 <th style={{ ...th, width: '16%' }}>進捗</th>
-                <th style={thR}>尾数 正味／込み</th>
+                <th style={thR}>
+                  尾数
+                  <br />
+                  正味
+                </th>
+                <th style={thR}>
+                  尾数
+                  <br />
+                  入れ目込
+                </th>
                 <th style={thR}>平均g</th>
                 <th style={thR}>便</th>
               </tr>
@@ -205,10 +225,8 @@ export default function DashboardScreen({ onClose }) {
                   <td style={td}>
                     <ProgressBar percent={r['進捗率']} />
                   </td>
-                  <td style={tdR}>
-                    {num(r['尾数'])}
-                    <span style={{ color: 'var(--c-text-3)' }}> / {num(r['尾数込み'])}</span>
-                  </td>
+                  <td style={{ ...tdR, fontWeight: 700 }}>{num(r['尾数'])}</td>
+                  <td style={{ ...tdR, color: 'var(--c-text-2)' }}>{num(r['尾数込み'])}</td>
                   <td style={tdR}>{r['平均サイズg'] || '―'}</td>
                   <td style={tdR}>
                     {r['完了便数']}/{r['便数']}
@@ -225,42 +243,70 @@ export default function DashboardScreen({ onClose }) {
             </tbody>
           </table>
 
-          {/* ③④ 池場別・運送会社別 */}
+          {/* ③ 池場別（列が多いので全幅） */}
+          <SectionTitle style={{ marginTop: 12 }}>池場別の出荷</SectionTitle>
+          <table className="dash" style={tableStyle}>
+            <colgroup>
+              <col style={{ width: '28%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '12%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={th}>池場</th>
+                <th style={thR}>
+                  出荷kg
+                  <br />
+                  正味
+                </th>
+                <th style={thR}>
+                  計量kg
+                  <br />
+                  入れ目込
+                </th>
+                <th style={thR}>
+                  尾数
+                  <br />
+                  正味
+                </th>
+                <th style={thR}>
+                  尾数
+                  <br />
+                  入れ目込
+                </th>
+                <th style={thR}>便</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ikebaRows.map((r) => (
+                <tr key={r['池場ID']}>
+                  <td style={td}>{ikebaBaseName(masters, r['池場ID']) || r['池場ID']}</td>
+                  <td style={{ ...tdR, fontWeight: 700 }}>{num(r['搬入済kg'])}</td>
+                  <td style={{ ...tdR, color: 'var(--c-text-2)' }}>{num(r['計量kg'])}</td>
+                  <td style={{ ...tdR, fontWeight: 700 }}>{num(r['尾数'])}</td>
+                  <td style={{ ...tdR, color: 'var(--c-text-2)' }}>{num(r['尾数込み'])}</td>
+                  <td style={tdR}>
+                    {r['完了便数']}/{r['便数']}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* ④ 運送会社別 */}
           <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-            <div style={{ flex: 1 }}>
-              <SectionTitle>池場別の出荷</SectionTitle>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th style={th}>池場</th>
-                    <th style={thR}>出荷kg 正味／計量</th>
-                    <th style={thR}>尾数 正味／込み</th>
-                    <th style={thR}>便</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ikebaRows.map((r) => (
-                    <tr key={r['池場ID']}>
-                      <td style={td}>{ikebaBaseName(masters, r['池場ID']) || r['池場ID']}</td>
-                      <td style={tdR}>
-                        {num(r['搬入済kg'])}
-                        <span style={{ color: 'var(--c-text-3)' }}> / {num(r['計量kg'])}</span>
-                      </td>
-                      <td style={tdR}>
-                        {num(r['尾数'])}
-                        <span style={{ color: 'var(--c-text-3)' }}> / {num(r['尾数込み'])}</span>
-                      </td>
-                      <td style={tdR}>
-                        {r['完了便数']}/{r['便数']}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ width: '56%' }}>
               <SectionTitle>運送会社別</SectionTitle>
-              <table style={tableStyle}>
+              <table className="dash" style={tableStyle}>
+                <colgroup>
+                  <col style={{ width: '34%' }} />
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '18%' }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th style={th}>運送会社</th>
@@ -273,7 +319,7 @@ export default function DashboardScreen({ onClose }) {
                   {carrierRows.map((r) => (
                     <tr key={r['運送会社ID'] || 'none'}>
                       <td style={td}>{carrierName(r['運送会社ID'])}</td>
-                      <td style={tdR}>{num(r['搬入済kg'])}</td>
+                      <td style={{ ...tdR, fontWeight: 700 }}>{num(r['搬入済kg'])}</td>
                       <td style={tdR}>
                         {r['完了便数']}/{r['便数']}
                       </td>
