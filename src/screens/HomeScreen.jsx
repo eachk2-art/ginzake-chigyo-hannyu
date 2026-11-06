@@ -4,7 +4,7 @@ import { useMasters } from '../context/MasterContext';
 import { getSchedules, getLastUpdated } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, formatDateTimeJP } from '../lib/dateUtils';
 import { ikebaBaseName, ikebaRegion, vehicleLabel, carrierNameByVehicle, kaimenPersonName, kaimenLocation, tantoushaName } from '../lib/masterLookup';
-import { representativeStatus } from '../lib/statusUtils';
+import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge, statusAccentColor } from '../components/UI';
 import CalendarPopup from '../components/CalendarPopup';
 import { isTaikyo } from '../lib/roles';
@@ -107,8 +107,8 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
         const kaimenGroups = Array.from(byKaimen.entries())
           .map(([kaimenId, items]) => {
             const sorted = [...items].sort((a, b) => orderKey(a) - orderKey(b));
-            // 取消の車輌は、台数・数量の合計に含めない（一覧には「取消」として表示は残す）
-            const activeItems = sorted.filter((s) => s['ステータス'] !== '取消');
+            // 取消・中止の車輌は、台数・数量の合計に含めない（一覧には表示を残す）
+            const activeItems = sorted.filter((s) => !isInactive(s['ステータス']));
             const totalKg = activeItems.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
             return {
               kaimenId,

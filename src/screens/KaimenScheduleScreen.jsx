@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules } from '../lib/api';
 import { formatJP, formatSlashJP, formatDateTimeJP, formatTimeDigits, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
-import { representativeStatus } from '../lib/statusUtils';
+import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 import { ikebaBaseName } from '../lib/masterLookup';
 
@@ -58,7 +58,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
     return times.sort()[times.length - 1];
   }, [allSchedules]);
 
-  // 表示期間内・日付ごとにまとめる（1日＝1行）。全車輌が取消の日は表示しない。
+  // 表示期間内・日付ごとにまとめる（1日＝1行）。全車輌が取消・中止の日は表示しない。
   const rows = useMemo(() => {
     if (!allSchedules) return [];
     const inRange = allSchedules.filter((s) => s['積込日'] >= dateFrom && s['積込日'] <= dateTo);
@@ -70,7 +70,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
     return Array.from(byDate.entries())
       .map(([date, items]) => {
         const status = representativeStatus(items);
-        const active = items.filter((s) => s['ステータス'] !== '取消');
+        const active = items.filter((s) => !isInactive(s['ステータス']));
         const totalKg = active.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
         // ★2026-09-24：内水面業者名ではなく池場名を表示する
         const ikebaNames = Array.from(new Set(active.map((s) => ikebaBaseName(masters, s['池場ID'])))).filter(
@@ -87,7 +87,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
           note: status === '納品完了' ? '終了' : '',
         };
       })
-      .filter((r) => r.status !== '取消' && r.totalKg > 0)
+      .filter((r) => !isInactive(r.status) && r.totalKg > 0)
       .sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [allSchedules, dateFrom, dateTo, masters]);
 

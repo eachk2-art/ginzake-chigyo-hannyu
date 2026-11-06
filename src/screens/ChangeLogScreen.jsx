@@ -191,6 +191,8 @@ function OpBadge({ type }) {
     作成: { bg: 'var(--c-ok-bg)', text: 'var(--c-ok)' },
     更新: { bg: 'var(--c-bg-3)', text: 'var(--c-text-2)' },
     取消: { bg: 'var(--c-danger-bg)', text: 'var(--c-danger)' },
+    中止: { bg: '#ede7f6', text: '#5e35b1' },
+    中止解除: { bg: '#ede7f6', text: '#5e35b1' },
   };
   const c = colors[type] || colors['更新'];
   return (

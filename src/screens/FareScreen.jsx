@@ -4,6 +4,7 @@ import { useMasters } from '../context/MasterContext';
 import {
   getFareSummary,
   setScheduleFare,
+  setScheduleStandbyFare,
   closeFares,
   reopenFares,
   exportFares,
@@ -359,6 +360,7 @@ export default function FareScreen() {
                           <div style={subStyle}>
                             {r['数量種別']}
                             {r['取消'] ? '・取消' : ''}
+                            {r['中止'] && r['中止理由'] ? `・${r['中止理由']}` : ''}
                           </div>
                         </td>
                         <td style={tdStyle}>
@@ -384,7 +386,11 @@ export default function FareScreen() {
                           {r['計算できない理由'] && (
                             <div style={{ ...subStyle, color: 'var(--c-warn)' }}>{r['計算できない理由']}</div>
                           )}
-                          {adjusted && (
+                          {/* 中止便は待機料が精算額になる（★2026-11-06） */}
+                          {r['中止'] && r['待機料'] !== '' && (
+                            <div style={{ ...subStyle, color: '#5e35b1' }}>待機料</div>
+                          )}
+                          {adjusted && !r['中止'] && (
                             <div style={{ ...subStyle, color: 'var(--c-warn)' }}>
                               調整{r['調整理由'] ? `：${r['調整理由']}` : ''}
                               {r['自動運賃'] !== '' && `（自動 ${Number(r['自動運賃']).toLocaleString()}円）`}
@@ -400,8 +406,15 @@ export default function FareScreen() {
           ))}
 
           {data.rows.length > 0 && (
-            <div style={{ fontSize: 17, fontWeight: 700, textAlign: 'right', marginTop: 10 }}>
-              合計 {Number(data.totals['精算運賃']).toLocaleString()}円
+            <div style={{ textAlign: 'right', marginTop: 10 }}>
+              <div style={{ fontSize: 17, fontWeight: 700 }}>
+                合計 {Number(data.totals['精算運賃']).toLocaleString()}円
+              </div>
+              {Number(data.totals['中止便数']) > 0 && (
+                <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginTop: 2 }}>
+                  うち中止 {data.totals['中止便数']}便・待機料 {Number(data.totals['待機料']).toLocaleString()}円
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -415,7 +428,10 @@ function FareEditScreen({ auth, masters, row, reasons, onSaved, onClose }) {
   const [fare, setFare] = useState(row['請求運賃'] || '');
   const [reason, setReason] = useState(row['調整理由'] || '');
   const [note, setNote] = useState(row['調整メモ'] || '');
+  const [standby, setStandby] = useState(row['待機料'] || '');
   const [error, setError] = useState('');
+  // 中止便は、運賃ではなく待機料を入力する（★2026-11-06）
+  const stopped = !!row['中止'];
 
   const vehicle = (masters?.車輌 || []).find((v) => v['車輌ID'] === row['車輌ID']);
   const maxLoad = Number(vehicle?.['最大積載数量kg']) || 0;
@@ -425,7 +441,11 @@ function FareEditScreen({ auth, masters, row, reasons, onSaved, onClose }) {
   async function save() {
     setError('');
     try {
-      await setScheduleFare(auth, row['積込予定ID'], fare, reason, note);
+      if (stopped) {
+        await setScheduleStandbyFare(auth, row['積込予定ID'], standby, '', reason, note);
+      } else {
+        await setScheduleFare(auth, row['積込予定ID'], fare, reason, note);
+      }
       onSaved();
     } catch (e) {
       setError(e.message);
@@ -434,7 +454,7 @@ function FareEditScreen({ auth, masters, row, reasons, onSaved, onClose }) {
 
   return (
     <div style={{ padding: '18px 16px 60px', maxWidth: 560, margin: '0 auto' }}>
-      <h2 style={{ fontSize: 19, margin: '4px 0 12px' }}>運賃の調整</h2>
+      <h2 style={{ fontSize: 19, margin: '4px 0 12px' }}>{stopped ? '待機料の入力（中止便）' : '運賃の調整'}</h2>
 
       <div style={{ background: 'var(--c-bg-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '12px 14px', marginBottom: 16, fontSize: 14, lineHeight: 1.8 }}>
         <div>
@@ -448,9 +468,34 @@ function FareEditScreen({ auth, masters, row, reasons, onSaved, onClose }) {
           {row['kg単価'] ? `単価 ${row['kg単価']}円` : '単価未登録'}　
           {row['自動運賃'] !== '' ? `自動計算 ${Number(row['自動運賃']).toLocaleString()}円` : ''}
         </div>
+        {stopped && (
+          <div style={{ color: '#5e35b1' }}>
+            この便は中止です{row['中止理由'] ? `（${row['中止理由']}）` : ''}。運賃は計算せず、待機料だけを入力します。
+          </div>
+        )}
       </div>
 
-      <div style={{ marginBottom: 14 }}>
+      {stopped && (
+        <div style={{ marginBottom: 14 }}>
+          <label
+            htmlFor="standby-input"
+            style={{ fontSize: 14, color: 'var(--c-text-2)', display: 'block', marginBottom: 4 }}
+          >
+            待機料（円）
+          </label>
+          <input
+            id="standby-input"
+            type="number"
+            inputMode="numeric"
+            value={standby}
+            onChange={(e) => setStandby(e.target.value)}
+            placeholder="発生しない場合は空欄"
+            style={{ ...inputStyle, width: '100%' }}
+          />
+        </div>
+      )}
+
+      <div style={{ marginBottom: 14, display: stopped ? 'none' : 'block' }}>
         <label htmlFor="fare-input" style={{ fontSize: 14, color: 'var(--c-text-2)', display: 'block', marginBottom: 4 }}>
           請求運賃（円）
         </label>

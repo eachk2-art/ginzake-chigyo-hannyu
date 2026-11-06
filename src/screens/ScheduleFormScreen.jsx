@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
-import { createSchedule, updateSchedule, cancelSchedule, deleteSchedule, bulkCreateSchedule } from '../lib/api';
+import {
+  createSchedule,
+  updateSchedule,
+  cancelSchedule,
+  resumeSchedule,
+  deleteSchedule,
+  bulkCreateSchedule,
+} from '../lib/api';
 import { ErrorMsg } from '../components/UI';
 import BusyButton from '../components/BusyButton';
 import TimeField from '../components/TimeField';
@@ -34,7 +41,8 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
     予定数量kg: initial?.['予定数量kg'] || '',
     予定入れ目率: initial?.['予定入れ目率'] ?? '5',
     到着予定時刻: initial?.['到着予定時刻'] || '',
-    予定状態: initial?.['予定状態'] === '保留' ? '保留' : '通常',
+    // ★2026-11-06：取消・中止はそのまま保つ（保存で通常に戻してしまわないように）
+    予定状態: initial?.['予定状態'] || '通常',
     備考: initial?.['備考'] || '',
   });
   const [tantoushaSel, setTantoushaSel] = useState(
@@ -182,6 +190,18 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
     setError('');
     try {
       await cancelSchedule(auth, initial['積込予定ID'], cancelReason);
+      onSaved?.();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  // 中止をやめて通常の予定に戻す（管理者のみ）
+  async function handleResumeSchedule() {
+    setError('');
+    if (!window.confirm('中止を取り消して、通常の予定に戻しますか？\n\n中止理由と待機料は消えます。')) return;
+    try {
+      await resumeSchedule(auth, initial['積込予定ID']);
       onSaved?.();
     } catch (e) {
       setError(e.message);
@@ -439,7 +459,16 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
       </Field>
 
       <Field label="予定状態">
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* ★2026-11-06：取消・中止の予定は、ここでは切り替えない（下のボタンで操作する） */}
+        {(form.予定状態 === '取消' || form.予定状態 === '中止') && (
+          <div style={{ fontSize: 14, color: 'var(--c-text-2)' }}>
+            この予定は「{form.予定状態}」です。
+            {form.予定状態 === '中止' && initial?.['中止理由']
+              ? `（理由：${initial['中止理由']}${initial['中止理由メモ'] ? '／' + initial['中止理由メモ'] : ''}）`
+              : ''}
+          </div>
+        )}
+        <div style={{ display: form.予定状態 === '取消' || form.予定状態 === '中止' ? 'none' : 'flex', gap: 8 }}>
           {['通常', '保留'].map((st) => (
             <button
               key={st}
@@ -491,6 +520,12 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
         {isEdit && isAdmin(auth.role) && initial['予定状態'] === '取消' && (
           <BusyButton variant="danger" onClick={handleDeleteSchedule}>
             この取消予定を一覧から削除する
+          </BusyButton>
+        )}
+        {/* 中止にする操作は「この車輌の操作」画面にある（太協も操作できる）★2026-11-06 */}
+        {isEdit && isAdmin(auth.role) && initial['予定状態'] === '中止' && (
+          <BusyButton variant="ghost" onClick={handleResumeSchedule}>
+            中止をやめて通常に戻す
           </BusyButton>
         )}
       </div>

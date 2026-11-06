@@ -105,6 +105,14 @@ export const updateSchedule = (auth, scheduleId, data) =>
   callAction('updateSchedule', { scheduleId, data }, auth);
 export const cancelSchedule = (auth, scheduleId, reason) =>
   callAction('cancelSchedule', { scheduleId, reason }, auth);
+// 中止：当日の天候・海況などで実行できなかった便（★2026-11-06。太協・管理者）
+export const stopSchedule = (auth, scheduleId, reason, note) =>
+  callAction('stopSchedule', { scheduleId, reason, note }, auth);
+// 中止を取り消して通常の予定に戻す（管理者のみ）
+export const resumeSchedule = (auth, scheduleId) =>
+  callAction('resumeSchedule', { scheduleId }, auth);
+// 中止理由の選択肢（サーバー側の STOP_REASONS と合わせる）
+export const STOP_REASONS = ['積雪', '暴風', '時化', 'その他'];
 // 取消にした予定を一覧から消す（管理者のみ。データは削除フラグで残る）
 export const deleteSchedule = (auth, scheduleId) => callAction('deleteSchedule', { scheduleId }, auth);
 export const bulkCreateSchedule = (auth, dataList) =>
@@ -156,6 +164,9 @@ export const getFareSummary = (auth, dateFrom, dateTo, qtyMode, carrierId) =>
   callAction('getFareSummary', { dateFrom, dateTo, qtyMode, carrierId }, auth);
 export const setScheduleFare = (auth, scheduleId, billedFare, reason, note) =>
   callAction('setScheduleFare', { scheduleId, billedFare, reason, note }, auth);
+// 待機料（中止便のみ。管理者のみ）★2026-11-06
+export const setScheduleStandbyFare = (auth, scheduleId, standbyFare, billedFare, reason, note) =>
+  callAction('setScheduleFare', { scheduleId, standbyFare, billedFare, reason, note }, auth);
 export const listFareClosings = (auth) => callAction('listFareClosings', {}, auth);
 export const closeFares = (auth, dateFrom, dateTo, qtyMode, title) =>
   callAction('closeFares', { dateFrom, dateTo, qtyMode, title }, auth);

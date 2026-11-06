@@ -135,7 +135,12 @@ function MainShell() {
       )}
 
       {screen === 'editMenu' && isTaikyo(auth.role) && activeSchedule && (
-        <EditMenuScreen schedule={activeSchedule} onSelect={selectMenuAction} onClose={closeEditMenu} />
+        <EditMenuScreen
+          schedule={activeSchedule}
+          onSelect={selectMenuAction}
+          onClose={closeEditMenu}
+          onChanged={closeEditMenu}
+        />
       )}
 
       {screen === 'loadingResultForm' && isTaikyo(auth.role) && activeSchedule && (
