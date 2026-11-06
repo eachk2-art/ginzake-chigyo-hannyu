@@ -174,7 +174,7 @@ export const reopenFares = (auth, closingId) => callAction('reopenFares', { clos
 export const exportFares = (auth, dateFrom, dateTo, qtyMode, carrierId, scope, format) =>
   callAction('exportFares', { dateFrom, dateTo, qtyMode, carrierId, scope, format }, auth);
 
-// ---- 集計ダッシュボード（SCR-070、太協・管理者）★2026-11-06 ----
+// ---- 集計ダッシュボード（SCR-130、太協・管理者）★2026-11-06 ----
 export const getDashboard = (auth, params) => callAction('getDashboard', params || {}, auth);
 
 // ---- マスタ管理（SCR-100、太協のみ。PHP版でのみ使える） ----

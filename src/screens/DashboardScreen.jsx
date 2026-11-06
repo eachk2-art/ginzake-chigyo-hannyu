@@ -7,7 +7,7 @@ import { kaimenPersonName, ikebaBaseName } from '../lib/masterLookup';
 import { ErrorMsg, LoadingMsg } from '../components/UI';
 
 /**
- * SCR-070 集計ダッシュボード（★2026-11-06）
+ * SCR-130 集計ダッシュボード（★2026-11-06）
  * ・期間はシーズン単位が基本。任意の期間にも切り替えられる
  * ・「搬入済み」は納品完了した便のみ。数量は予定数量kgで集計する
  * ・A4縦1枚に収まるように組んである
@@ -42,27 +42,12 @@ export default function DashboardScreen({ onClose }) {
     return c ? c['略称'] || c['運送会社名'] : id || '（車輌未設定）';
   };
 
-  // 海面業者別：目標がある業者を先に、そのあと搬入実績の多い順
-  const kaimenRows = useMemo(() => {
-    if (!data) return [];
-    return [...data.byKaimen]
-      .filter((r) => Number(r['目標kg']) > 0 || Number(r['便数']) > 0)
-      .sort((a, b) => {
-        const ta = Number(a['目標kg']) || 0;
-        const tb = Number(b['目標kg']) || 0;
-        if ((ta > 0) !== (tb > 0)) return tb > 0 ? 1 : -1;
-        return (Number(b['搬入済kg']) || 0) - (Number(a['搬入済kg']) || 0);
-      });
-  }, [data]);
-
-  const ikebaRows = useMemo(
-    () => (data ? [...data.byIkeba].filter((r) => Number(r['便数']) > 0) : []),
-    [data]
-  );
-  const carrierRows = useMemo(
-    () => (data ? [...data.byCarrier].filter((r) => Number(r['便数']) > 0) : []),
-    [data]
-  );
+  // ★2026-11-06：並び順はサーバー側（dashboard.php）で決めている。
+  // 画面側では並べ替えず、実績が無い業者・池場・運送会社も0件の行として出す。
+  // （毎回同じ顔ぶれ・同じ順で並ぶので、期間を変えても見比べやすい）
+  const kaimenRows = data ? data.byKaimen : [];
+  const ikebaRows = data ? data.byIkeba : [];
+  const carrierRows = data ? data.byCarrier : [];
 
   const maxDayKg = useMemo(
     () => (data ? Math.max(1, ...data.byDay.map((d) => Number(d['予定kg']) || 0)) : 1),
