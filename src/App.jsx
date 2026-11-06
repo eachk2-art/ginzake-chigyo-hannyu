@@ -18,6 +18,7 @@ import ContactsScreen from './screens/ContactsScreen';
 import MasterAdminScreen from './screens/MasterAdminScreen';
 import FareScreen from './screens/FareScreen';
 import FleetCheckScreen from './screens/FleetCheckScreen';
+import DashboardScreen from './screens/DashboardScreen';
 import EntryQrScreen from './screens/EntryQrScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import NavBar from './components/NavBar';
@@ -166,6 +167,11 @@ function MainShell() {
       {screen === 'entryQr' && isAdmin(auth.role) && <EntryQrScreen />}
 
       {screen === 'fares' && isTaikyo(auth.role) && <FareScreen />}
+
+      {/* 集計ダッシュボード（★2026-11-06、太協・管理者） */}
+      {screen === 'dashboard' && isTaikyo(auth.role) && (
+        <DashboardScreen onClose={() => setScreen('home')} />
+      )}
 
       {screen === 'fleetCheck' && isTaikyo(auth.role) && (
         <FleetCheckScreen onEditSchedule={(s) => openEditMenu(s, 'fleetCheck')} />

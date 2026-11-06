@@ -10,6 +10,7 @@ const TAIKYO_ITEMS = [
   { key: 'fleetCheck', label: '配車チェック' },
   { key: 'kaimenPicker', label: '予定表' },
   { key: 'fares', label: '運賃' },
+  { key: 'dashboard', label: '集計' },
 ];
 const ADMIN_ONLY_ITEMS = [
   { key: 'changeLog', label: '変更履歴' },

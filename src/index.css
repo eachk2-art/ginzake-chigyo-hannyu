@@ -145,6 +145,21 @@ textarea {
   .print-area td {
     padding: 4px 8px !important;
   }
+  /* ★2026-11-06：集計の進捗バー・棒グラフは、印刷でも色を残す。
+     .print-area * で背景を透明にしているため、専用クラスで上書きする */
+  .print-area {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-area .bar-progress {
+    background: #2e7d32 !important;
+  }
+  .print-area .bar-done {
+    background: #1565c0 !important;
+  }
+  .print-area .bar-plan {
+    background: #cfd8dc !important;
+  }
   @page {
     size: A4 portrait;
     margin: 20mm;
