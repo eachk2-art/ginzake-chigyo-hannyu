@@ -6,8 +6,7 @@ import { today, addDays, toDateStr, formatJP, monthRange } from '../lib/dateUtil
 import { ikebaName, vehicleLabel, carrierNameByVehicle, kaimenName, tantoushaName } from '../lib/masterLookup';
 import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge } from '../components/UI';
-import { isTaikyo } from '../lib/roles';
-import { isAdmin } from '../lib/roles';
+import { isTaikyo, isAdmin } from '../lib/roles';
 
 const DEFAULT_RANGE_DAYS = 13; // 今日から2週間先まで
 
@@ -15,7 +14,10 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
   const { auth } = useAuth();
   const { masters } = useMasters();
   const canEdit = isTaikyo(auth.role);
-  const canReorder = isAdmin(auth.role); // 積込順の並べ替えは管理者のみ（★2026-09-23）
+  // 納品先（海面業者）のまとまりの入れ替えは管理者のみ（★2026-09-23）
+  const canReorderGroup = isAdmin(auth.role);
+  // 納品先の中での車輌の入れ替えは太協も可（★2026-11-06）
+  const canReorderVehicle = isTaikyo(auth.role);
 
   // 戻ってきた先が期間の外にある場合でも見えるよう、期間を必要な分だけ広げておく
   const [dateFrom, setDateFrom] = useState(() => {
@@ -351,8 +353,8 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                     </span>
                                   </button>
 
-                                  {/* 納品先の積込順の入れ替え（太協のみ） */}
-                                  {canReorder && kaimenGroups.length > 1 && (
+                                  {/* 納品先の積込順の入れ替え（管理者のみ） */}
+                                  {canReorderGroup && kaimenGroups.length > 1 && (
                                     <div style={{ display: 'flex', gap: 4, padding: '0 10px 0 4px' }}>
                                       <OrderButton
                                         label="▲"
@@ -395,8 +397,8 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                         </span>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                           <StatusBadge status={s['ステータス']} />
-                                          {/* 車輌の積込順の入れ替え（太協側のみ・2台以上のとき） */}
-                                          {canReorder && items.length > 1 && (
+                                          {/* 車輌の積込順の入れ替え（太協・管理者／2台以上のとき） */}
+                                          {canReorderVehicle && items.length > 1 && (
                                             <>
                                               <OrderButton
                                                 label="▲"
