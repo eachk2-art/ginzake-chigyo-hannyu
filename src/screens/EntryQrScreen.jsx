@@ -164,7 +164,7 @@ export default function EntryQrScreen() {
         </div>
       </div>
 
-      {/* 印刷範囲：A4縦を4分割したカード */}
+      {/* 印刷範囲：A4縦を4分割したカード（★2026-11-06：1枚を85×126mmに拡大） */}
       <div className="print-area">
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
           {cards.map((a, i) => (
@@ -172,27 +172,38 @@ export default function EntryQrScreen() {
               key={`${a.loginId}-${i}`}
               style={{
                 width: '50%',
-                height: '48mm',
+                height: '126mm',
                 boxSizing: 'border-box',
                 border: '1px dashed #999',
-                padding: '6mm 6mm',
+                padding: '8mm 7mm',
                 display: 'flex',
-                gap: '5mm',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
                 pageBreakInside: 'avoid',
                 background: '#fff',
                 color: '#000',
               }}
             >
-              <div dangerouslySetInnerHTML={{ __html: qrSvg(entryUrl(a.key), 3) }} />
-              <div style={{ flex: 1, fontSize: '9pt', lineHeight: 1.5 }}>
-                <div style={{ fontSize: '12pt', fontWeight: 700 }}>
-                  {formalName(a)} {honorific(formalName(a))}
-                </div>
-                <div style={{ marginTop: '2mm' }}>ギンザケ稚魚 搬入管理アプリ</div>
-                <div style={{ fontSize: '8pt', wordBreak: 'break-all', marginTop: '1mm' }}>{entryUrl(a.key)}</div>
-                <div style={{ marginTop: '2mm' }}>PIN：＿＿＿＿＿＿</div>
-                <div style={{ fontSize: '7pt', marginTop: '2mm', lineHeight: 1.4 }}>{NOTICE}</div>
+              <div style={{ fontSize: '15pt', fontWeight: 700, lineHeight: 1.3 }}>
+                {formalName(a)} {honorific(formalName(a))}
               </div>
+              <div style={{ fontSize: '10pt', marginTop: '2mm' }}>ギンザケ稚魚 搬入管理アプリ</div>
+
+              <div className="qr-img" style={{ width: '46mm', marginTop: '4mm' }}
+                dangerouslySetInnerHTML={{ __html: qrSvg(entryUrl(a.key), 4) }} />
+
+              <div style={{ fontSize: '8pt', wordBreak: 'break-all', marginTop: '3mm', lineHeight: 1.5 }}>
+                {entryUrl(a.key)}
+              </div>
+
+              <div style={{ fontSize: '12pt', marginTop: '4mm', letterSpacing: '0.5px' }}>
+                PIN：＿＿＿＿＿＿＿
+              </div>
+
+              <div style={{ flex: 1 }} />
+
+              <div style={{ fontSize: '7.5pt', lineHeight: 1.6, textAlign: 'left' }}>{NOTICE}</div>
             </div>
           ))}
         </div>

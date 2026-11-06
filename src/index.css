@@ -160,6 +160,12 @@ textarea {
   .print-area .bar-plan {
     background: #cfd8dc !important;
   }
+  /* ★2026-11-06：配布カードのQRは、枠の幅に合わせて拡大縮小する */
+  .print-area .qr-img svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
   /* ★2026-11-06：集計は列が多いため、印刷時の余白と字を詰めてA4縦1枚に収める */
   .print-area table.dash {
     font-size: 9pt;
@@ -175,4 +181,11 @@ textarea {
     size: A4 portrait;
     margin: 20mm;
   }
+}
+
+/* 配布カードのQR（画面プレビュー時も枠幅に合わせる）★2026-11-06 */
+.qr-img svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
