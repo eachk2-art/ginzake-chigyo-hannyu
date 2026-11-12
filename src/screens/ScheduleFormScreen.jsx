@@ -50,6 +50,13 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
   );
   const [tantoushaFree, setTantoushaFree] = useState(initialTantoushaIsOther ? initial['内水面立会者ID'] : '');
 
+  // ★2026-11-12：予定の海面立会者（管理者のみ入力。搬入実績を開いたときの初期値になる）
+  const adminUser = isAdmin(auth.role);
+  const initialSeaId = initial?.['予定海面立会者ID'] || '';
+  const initialSeaIsOther = !!initialSeaId && !taikyoTantousha.some((t) => t['担当者ID'] === initialSeaId);
+  const [seaSel, setSeaSel] = useState(initialSeaIsOther ? OTHER_TANTOUSHA : initialSeaId);
+  const [seaFree, setSeaFree] = useState(initialSeaIsOther ? initialSeaId : '');
+
   const [error, setError] = useState('');
   const [showCancelPanel, setShowCancelPanel] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -94,6 +101,16 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
     return tantoushaSel;
   }
 
+  function buildSeaWitnessId() {
+    if (seaSel === OTHER_TANTOUSHA) return seaFree.trim();
+    return seaSel;
+  }
+
+  // 管理者のときだけ、予定の海面立会者を送る（管理者以外はサーバー側でも受け付けない）
+  function seaWitnessPart() {
+    return adminUser ? { 予定海面立会者ID: buildSeaWitnessId() } : {};
+  }
+
   function validate() {
     if (!form.積込日) return '積込日を入力してください';
     if (!form.池場ID) return '池場を選択してください';
@@ -108,6 +125,9 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
     }
     if (tantoushaSel === OTHER_TANTOUSHA && !tantoushaFree.trim()) {
       return '内水面立会者の氏名を入力してください（その他を選んだ場合）';
+    }
+    if (adminUser && seaSel === OTHER_TANTOUSHA && !seaFree.trim()) {
+      return '海面立会者の氏名を入力してください（その他を選んだ場合）';
     }
     return '';
   }
@@ -135,6 +155,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
           予定計量数量kg: String(keiryo),
           到着予定時刻: form.到着予定時刻,
           内水面立会者ID: buildTantoushaId(),
+          ...seaWitnessPart(),
           予定状態: form.予定状態,
           備考: form.備考,
         };
@@ -159,6 +180,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
       予定計量数量kg: String(keiryoKg),
       到着予定時刻: form.到着予定時刻,
       内水面立会者ID: buildTantoushaId(),
+      ...seaWitnessPart(),
       予定状態: form.予定状態,
       備考: form.備考,
     };
@@ -457,6 +479,29 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
           />
         )}
       </Field>
+
+      {adminUser && (
+        <Field label="海面立会者（予定）※搬入実績を入力するときの初期値になります">
+          <select value={seaSel} onChange={(e) => setSeaSel(e.target.value)} style={inputStyle}>
+            <option value="">未定</option>
+            {taikyoTantousha.map((t) => (
+              <option key={t['担当者ID']} value={t['担当者ID']}>
+                {t['氏名']}
+              </option>
+            ))}
+            <option value={OTHER_TANTOUSHA}>その他（自由入力）</option>
+          </select>
+          {seaSel === OTHER_TANTOUSHA && (
+            <input
+              type="text"
+              placeholder="氏名を入力"
+              value={seaFree}
+              onChange={(e) => setSeaFree(e.target.value)}
+              style={{ ...inputStyle, marginTop: 8 }}
+            />
+          )}
+        </Field>
+      )}
 
       <Field label="予定状態">
         {/* ★2026-11-06：取消・中止の予定は、ここでは切り替えない（下のボタンで操作する） */}

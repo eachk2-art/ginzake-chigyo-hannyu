@@ -100,7 +100,8 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, details, delive
     [masters]
   );
 
-  const initialTantoushaId = delivery?.['海面立会者ID'] || '';
+  // ★2026-11-12：搬入実績にまだ海面立会者が無ければ、予定の海面立会者を初期値にする
+  const initialTantoushaId = delivery?.['海面立会者ID'] || schedule['予定海面立会者ID'] || '';
   const initialIsOther = initialTantoushaId && !taikyoTantousha.some((t) => t['担当者ID'] === initialTantoushaId);
 
   const [form, setForm] = useState({
