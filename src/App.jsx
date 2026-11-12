@@ -22,6 +22,7 @@ import DashboardScreen from './screens/DashboardScreen';
 import EntryQrScreen from './screens/EntryQrScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import NavBar from './components/NavBar';
+import ViewSwitchBar from './components/ViewSwitchBar';
 import { isAdmin, isTaikyo } from './lib/roles';
 
 // 太協・内水面業者・運送会社向け（従来通りの操作画面一式）
@@ -94,23 +95,7 @@ function MainShell() {
 
   return (
     <div>
-      {auth.review && (
-        <div
-          style={{
-            background: 'var(--c-warn-bg)',
-            color: 'var(--c-warn)',
-            border: '1px solid var(--c-warn)',
-            borderRadius: 10,
-            padding: '8px 14px',
-            margin: '10px 12px 0',
-            fontSize: 14,
-            fontWeight: 700,
-          }}
-        >
-          確認用ログイン中です（{auth.tileName}の見え方）。登録・修正はできません。
-        </div>
-      )}
-
+      {/* 確認用ログインの黄色い帯は、ViewSwitchBar（画面共通）に移した ★2026-11-13 */}
       <NavBar screen={screen} onChange={handleNavChange} />
 
       {screen === 'home' && (
@@ -234,8 +219,11 @@ function AppInner() {
 
   if (!auth) return <LoginScreen />;
 
+  // ★2026-11-13：表示切替でログインが変わったら、画面の状態ごと作り直す（key にトークンを使う）。
+  // 前の事業者で開いていた画面・日付などを引き継がないようにするため。
   return (
-    <MasterProvider>
+    <MasterProvider key={auth.token}>
+      <ViewSwitchBar />
       {auth.role === '海面業者' ? <KaimenShell /> : <MainShell />}
     </MasterProvider>
   );
