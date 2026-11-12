@@ -154,6 +154,9 @@ export const bulkSetDeliveryResultField = (auth, scheduleIds, field, value) =>
   callAction('bulkSetDeliveryResultField', { scheduleIds, field, value }, auth);
 export const bulkConfirmDelivery = (auth, scheduleIds) =>
   callAction('bulkConfirmDelivery', { scheduleIds }, auth);
+// 立会者をまとめて変更（★2026-11-12、管理者のみ）。changes に naisuimen / kaimen のうち変更するものだけを入れる
+export const bulkSetWitness = (auth, scheduleIds, changes) =>
+  callAction('bulkSetWitness', { scheduleIds, ...changes }, auth);
 
 // ---- 海面業者向け：横浦地区の共同予定表 ----
 export const getJointScheduleMarks = (auth, kaimenIds, dateFrom, dateTo) =>

@@ -6,6 +6,8 @@ import { formatJP } from '../lib/dateUtils';
 import { ikebaName, kaimenName } from '../lib/masterLookup';
 import { ErrorMsg, LoadingMsg } from '../components/UI';
 import BulkActionsPanel from '../components/BulkActionsPanel';
+import BulkWitnessPanel from '../components/BulkWitnessPanel';
+import { isAdmin } from '../lib/roles';
 
 export default function BulkActionsScreen({ schedule, onClose }) {
   const { auth } = useAuth();
@@ -13,8 +15,10 @@ export default function BulkActionsScreen({ schedule, onClose }) {
   const [siblings, setSiblings] = useState(null);
   const [error, setError] = useState('');
 
-  const load = useCallback(() => {
-    setSiblings(null);
+  // quiet=true のときは「読み込んでいます」を出さずに裏で読み直す
+  // （反映後にパネルが消えて、結果のメッセージや選択が消えてしまわないように ★2026-11-12）
+  const load = useCallback((quiet = false) => {
+    if (!quiet) setSiblings(null);
     setError('');
     const d = schedule['積込日'];
     getSchedules(auth, { dateFrom: d, dateTo: d })
@@ -43,10 +47,15 @@ export default function BulkActionsScreen({ schedule, onClose }) {
         {kaimenName(masters, schedule['海面業者ID'])}
       </div>
 
-      {error && <ErrorMsg message={`読み込みに失敗しました：${error}`} onRetry={load} />}
+      {error && <ErrorMsg message={`読み込みに失敗しました：${error}`} onRetry={() => load()} />}
       {!error && siblings === null && <LoadingMsg>読み込んでいます…</LoadingMsg>}
       {!error && siblings && (
-        <BulkActionsPanel scheduleIds={siblings.map((s) => s['積込予定ID'])} onDone={load} />
+        <BulkActionsPanel scheduleIds={siblings.map((s) => s['積込予定ID'])} onDone={() => load(true)} />
+      )}
+      {!error && siblings && isAdmin(auth.role) && (
+        <div style={{ marginTop: 16 }}>
+          <BulkWitnessPanel schedules={siblings} onDone={() => load(true)} />
+        </div>
       )}
     </div>
   );
