@@ -14,6 +14,19 @@ const NOTICE =
 
 const APP_URL = 'https://eachk2-art.github.io/ginzake-chigyo-hannyu/';
 
+/**
+ * 印刷用：アドレスを読みやすい区切りで3行に分ける（★2026-11-13）
+ *   https://eachk2-art.github.io/
+ *   ginzake-chigyo-hannyu/
+ *   ?e=入口キー
+ */
+function splitUrl(url) {
+  const i = url.indexOf('.io/');
+  const q = url.indexOf('?');
+  if (i < 0 || q < i) return [url];
+  return [url.slice(0, i + 4), url.slice(i + 4, q), url.slice(q)];
+}
+
 function entryUrl(key) {
   return `${APP_URL}?e=${key}`;
 }
@@ -175,7 +188,7 @@ export default function EntryQrScreen() {
                 height: '126mm',
                 boxSizing: 'border-box',
                 border: '1px dashed #999',
-                padding: '8mm 7mm',
+                padding: '5mm 7mm',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -188,22 +201,35 @@ export default function EntryQrScreen() {
               <div style={{ fontSize: '15pt', fontWeight: 700, lineHeight: 1.3 }}>
                 {formalName(a)} {honorific(formalName(a))}
               </div>
-              <div style={{ fontSize: '10pt', marginTop: '2mm' }}>ギンザケ稚魚 搬入管理アプリ</div>
+              <div style={{ fontSize: '10pt', marginTop: '1.5mm' }}>ギンザケ稚魚 搬入管理アプリ</div>
 
-              <div className="qr-img" style={{ width: '46mm', marginTop: '4mm' }}
+              {/* ★2026-11-13：QRは小さく（46mm→28mm）、その分アドレスと注意書きを大きくした */}
+              <div className="qr-img" style={{ width: '28mm', marginTop: '2.5mm', flexShrink: 0 }}
                 dangerouslySetInnerHTML={{ __html: qrSvg(entryUrl(a.key), 4) }} />
 
-              <div style={{ fontSize: '8pt', wordBreak: 'break-all', marginTop: '3mm', lineHeight: 1.5 }}>
-                {entryUrl(a.key)}
+              {/* アドレスは途中で変な所で切れないよう、区切りのよい所で3行に分けて大きく出す */}
+              <div style={{ fontSize: '11pt', fontWeight: 700, marginTop: '2.5mm', lineHeight: 1.3 }}>
+                {splitUrl(entryUrl(a.key)).map((line) => (
+                  <div key={line} style={{ overflowWrap: 'anywhere' }}>{line}</div>
+                ))}
+              </div>
+              <div style={{ fontSize: '9pt', marginTop: '1.5mm', lineHeight: 1.5 }}>
+                パソコンのブラウザで運用する場合は、
+                <br />
+                上記アドレスを入力してください
               </div>
 
-              <div style={{ fontSize: '12pt', marginTop: '4mm', letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: '12pt', marginTop: '3mm', letterSpacing: '0.5px' }}>
                 PIN：＿＿＿＿＿＿＿
+              </div>
+              {/* ★2026-11-13：ログイン状態はタブの中だけに保存しているため、ブラウザを閉じるとPINの入れ直しになる */}
+              <div style={{ fontSize: '8.5pt', marginTop: '1mm', lineHeight: 1.4 }}>
+                ※ブラウザを閉じると、PINの再入力が必要です
               </div>
 
               <div style={{ flex: 1 }} />
 
-              <div style={{ fontSize: '7.5pt', lineHeight: 1.6, textAlign: 'left' }}>{NOTICE}</div>
+              <div style={{ fontSize: '8.5pt', lineHeight: 1.5, textAlign: 'left', marginTop: '2.5mm' }}>{NOTICE}</div>
             </div>
           ))}
         </div>

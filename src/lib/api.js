@@ -88,9 +88,8 @@ function isRetryable_(e) {
 // ---- 認証（ログイン前なのでauthなしで呼ぶ） ----
 // 入口キー（URLの ?e=）で、表示する事業者を出し分ける
 export const getLoginTiles = (entryKey) => callAction('getLoginTiles', { entryKey });
-// 入口キーも渡す（太協・管理者の入口からだけ、確認用マスターPINが使える）
 export const login = (loginId, pin, entryKey) => callAction('login', { loginId, pin, entryKey });
-export const setMasterPin = (auth, newPin) => callAction('setMasterPin', { newPin }, auth);
+// ★2026-11-13：確認用マスターPIN（setMasterPin / getMasterPinStatus）は廃止
 
 // ---- 表示切替（★2026-11-13）。太協・管理者が、他の事業者の見え方を閲覧専用で確認する ----
 // getViewTargets / switchView は必ず「元のログイン」の auth で呼ぶ（確認用ログインからは切り替えられない）
@@ -98,7 +97,6 @@ export const getViewTargets = (auth) => callAction('getViewTargets', {}, auth);
 export const switchView = (auth, targetLoginId) => callAction('switchView', { targetLoginId }, auth);
 // 切替用に発行されたトークンを無効にする（切替中の auth で呼ぶ）
 export const endView = (auth) => callAction('endView', {}, auth);
-export const getMasterPinStatus = (auth) => callAction('getMasterPinStatus', {}, auth);
 
 // ---- マスタ ----
 export const getMasters = (auth) => callAction('getMasters', {}, auth);

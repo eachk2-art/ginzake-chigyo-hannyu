@@ -39,8 +39,8 @@ export default function LoginScreen() {
   }
 
   async function handleLogin() {
-    // 通常は6桁。太協・管理者の入口では、確認用の8桁マスターPINも使える
-    if (pin.length !== 6 && pin.length !== 8) {
+    // ★2026-11-13：確認用の8桁マスターPINは廃止。6桁だけ
+    if (pin.length !== 6) {
       setLoginError('6桁の数字を入力してください');
       return;
     }
@@ -76,8 +76,7 @@ export default function LoginScreen() {
         <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 24 }}>
           {selected.tileName} のPINを入力
         </div>
-        {/* 太協・管理者の入口では、確認用の8桁マスターPINも入力できるようにする */}
-        <PinPad value={pin} onChange={setPin} maxLength={tiles.length > 1 ? 8 : 6} />
+        <PinPad value={pin} onChange={setPin} maxLength={6} />
         <ErrorMsg message={loginError} />
         <div style={{ display: 'flex', gap: 12, marginTop: 24, width: '100%', maxWidth: 300 }}>
           {/* 1事業者だけの入口では「戻る」先が無いので出さない */}

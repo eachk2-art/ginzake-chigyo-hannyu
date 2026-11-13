@@ -1,9 +1,13 @@
+import { hapticTap } from '../lib/haptics';
+
 export default function PinPad({ value, onChange, maxLength = 6 }) {
   function press(d) {
     if (value.length >= maxLength) return;
+    hapticTap(); // ★2026-11-13：タップしたら軽く振動させる（Android・iPhone）
     onChange(value + d);
   }
   function backspace() {
+    if (value.length > 0) hapticTap();
     onChange(value.slice(0, -1));
   }
 
