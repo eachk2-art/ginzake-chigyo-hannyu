@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getJointScheduleMarks } from '../lib/api';
-import { today, addDays, toDateStr, formatJP, formatSlashJP, formatDateTimeJP, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
+import { today, addDays, toDateStr, formatJP, formatSlashJP, formatDateTimeJP, seasonRangeFromTargets, printWithTitle, fileDateStamp } from '../lib/dateUtils';
 import { ErrorMsg, LoadingMsg } from '../components/UI';
 
 const DEFAULT_RANGE_DAYS = 13;
@@ -13,8 +13,18 @@ export default function JointScheduleScreen({ kaimenIds, onClose }) {
   const { auth } = useAuth();
   const { masters } = useMasters();
 
-  const [dateFrom, setDateFrom] = useState(() => defaultSeasonRange().from);
-  const [dateTo, setDateTo] = useState(() => defaultSeasonRange().to);
+  // ★2026-11-13：初期の期間は、マスタ_搬入目標の開始日〜終了日（未登録なら今年の11/1〜12/31）
+  const [dateFrom, setDateFrom] = useState(() => seasonRangeFromTargets(masters?.搬入目標, kaimenIds).from);
+  const [dateTo, setDateTo] = useState(() => seasonRangeFromTargets(masters?.搬入目標, kaimenIds).to);
+  // マスタの読み込みが画面より後になった場合は、届いたときに1回だけ期間を合わせ直す
+  const rangeInitDone = useRef(!!masters);
+  useEffect(() => {
+    if (rangeInitDone.current || !masters) return;
+    rangeInitDone.current = true;
+    const r = seasonRangeFromTargets(masters.搬入目標, kaimenIds);
+    setDateFrom(r.from);
+    setDateTo(r.to);
+  }, [masters]);
   const [marks, setMarks] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null); // ★2026-09-24：個別の予定表と同じく最終更新を出す
   const [error, setError] = useState('');

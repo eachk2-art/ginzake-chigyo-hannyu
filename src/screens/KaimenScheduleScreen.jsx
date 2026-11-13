@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules } from '../lib/api';
-import { formatJP, formatSlashJP, formatDateTimeJP, formatTimeDigits, defaultSeasonRange, printWithTitle, fileDateStamp } from '../lib/dateUtils';
+import { formatJP, formatSlashJP, formatDateTimeJP, formatTimeDigits, seasonRangeFromTargets, printWithTitle, fileDateStamp } from '../lib/dateUtils';
 import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 import { ikebaBaseName } from '../lib/masterLookup';
@@ -14,8 +14,18 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
   const { auth } = useAuth();
   const { masters } = useMasters();
 
-  const [dateFrom, setDateFrom] = useState(() => defaultSeasonRange().from);
-  const [dateTo, setDateTo] = useState(() => defaultSeasonRange().to);
+  // ★2026-11-13：初期の期間は、マスタ_搬入目標の開始日〜終了日（未登録なら今年の11/1〜12/31）
+  const [dateFrom, setDateFrom] = useState(() => seasonRangeFromTargets(masters?.搬入目標, [kaimenId]).from);
+  const [dateTo, setDateTo] = useState(() => seasonRangeFromTargets(masters?.搬入目標, [kaimenId]).to);
+  // マスタの読み込みが画面より後になった場合は、届いたときに1回だけ期間を合わせ直す
+  const rangeInitDone = useRef(!!masters);
+  useEffect(() => {
+    if (rangeInitDone.current || !masters) return;
+    rangeInitDone.current = true;
+    const r = seasonRangeFromTargets(masters.搬入目標, [kaimenId]);
+    setDateFrom(r.from);
+    setDateTo(r.to);
+  }, [masters]);
   const [allSchedules, setAllSchedules] = useState(null); // 期間指定なし＝全期間（最終更新日の算出にも使う）
   const [error, setError] = useState('');
 

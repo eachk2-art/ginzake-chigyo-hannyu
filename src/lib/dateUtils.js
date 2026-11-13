@@ -85,6 +85,31 @@ export function defaultSeasonRange() {
   return { from: `${y}-11-01`, to: `${y}-12-31` };
 }
 
+/**
+ * 海面業者向け予定表の初期の期間を、マスタ_搬入目標の開始日〜終了日から決める（★2026-11-13）。
+ * ・targets：マスタ_搬入目標の一覧、kaimenIds：対象の海面業者ID（個別なら1件、共同予定表なら複数）
+ * ・今日を含むシーズン → 無ければこれから始まる一番近いシーズン → 無ければ直近の終わったシーズン
+ * ・同じシーズン名の目標が複数業者にあれば、その開始日の最も早い日〜終了日の最も遅い日にする
+ * ・使える目標が無ければ、これまでどおり今年の11/1〜12/31
+ */
+export function seasonRangeFromTargets(targets, kaimenIds) {
+  const ids = new Set(kaimenIds || []);
+  const list = (targets || []).filter((g) => ids.has(g['海面業者ID']) && g['開始日'] && g['終了日']);
+  if (list.length === 0) return defaultSeasonRange();
+
+  const t = toDateStr(today());
+  const current = list.filter((g) => g['開始日'] <= t && g['終了日'] >= t);
+  const upcoming = list.filter((g) => g['開始日'] > t).sort((a, b) => (a['開始日'] < b['開始日'] ? -1 : 1));
+  const past = list.filter((g) => g['終了日'] < t).sort((a, b) => (a['終了日'] > b['終了日'] ? -1 : 1));
+  const pick = current[0] || upcoming[0] || past[0];
+
+  const season = pick['シーズン'];
+  const same = season ? list.filter((g) => g['シーズン'] === season) : [pick];
+  const from = same.map((g) => g['開始日']).sort()[0];
+  const to = same.map((g) => g['終了日']).sort().reverse()[0];
+  return { from, to };
+}
+
 /** 指定した年月（1〜12）の1日〜末日の範囲を返す */
 export function monthRange(year, month) {
   const from = `${year}-${String(month).padStart(2, '0')}-01`;
