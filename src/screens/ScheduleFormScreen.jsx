@@ -35,6 +35,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
   const [form, setForm] = useState({
     積込日: initial?.['積込日'] || '',
     池場ID: initial?.['池場ID'] || '',
+    由来池場ID: initial?.['由来池場ID'] || '',
     車輌ID: initial?.['車輌ID'] || '',
     海面業者ID: initial?.['海面業者ID'] || '',
     配送先ID: initial?.['配送先ID'] || '',
@@ -101,6 +102,11 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
     return tantoushaSel;
   }
 
+  // 元の池（由来）は、出荷池と同じなら持たない（★2026-11-13）
+  function originIdForSave() {
+    return form.由来池場ID && form.由来池場ID !== form.池場ID ? form.由来池場ID : '';
+  }
+
   function buildSeaWitnessId() {
     if (seaSel === OTHER_TANTOUSHA) return seaFree.trim();
     return seaSel;
@@ -147,6 +153,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
         return {
           積込日: form.積込日,
           池場ID: form.池場ID,
+          由来池場ID: originIdForSave(),
           車輌ID: vehicleId,
           海面業者ID: form.海面業者ID,
           配送先ID: form.配送先ID,
@@ -172,6 +179,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
     const data = {
       積込日: form.積込日,
       池場ID: form.池場ID,
+      由来池場ID: originIdForSave(),
       車輌ID: form.車輌ID,
       海面業者ID: form.海面業者ID,
       配送先ID: form.配送先ID,
@@ -263,6 +271,21 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
               {p['池場名']}
             </option>
           ))}
+        </select>
+      </Field>
+
+      {/* ★2026-11-13：中間魚の段階で別の池から移してきた稚魚のとき、移す前の池を選ぶ。
+          予定表では「玉山（大沢）」のように表示される */}
+      <Field label="元の池（由来）※別の池から移してきた稚魚のときだけ">
+        <select value={form.由来池場ID} onChange={(e) => set('由来池場ID', e.target.value)} style={inputStyle}>
+          <option value="">なし（この池で育った稚魚）</option>
+          {(masters?.池場 || [])
+            .filter((p) => p['池場ID'] !== form.池場ID)
+            .map((p) => (
+              <option key={p['池場ID']} value={p['池場ID']}>
+                {p['池場名']}
+              </option>
+            ))}
         </select>
       </Field>
 

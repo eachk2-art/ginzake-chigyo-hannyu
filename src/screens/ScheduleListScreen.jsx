@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules, reorderSchedules } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, monthRange } from '../lib/dateUtils';
-import { ikebaName, vehicleLabel, carrierNameByVehicle, kaimenName, tantoushaName } from '../lib/masterLookup';
+import { ikebaName, vehicleLabel, carrierNameByVehicle, kaimenName, tantoushaName, originIkebaName } from '../lib/masterLookup';
 import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge } from '../components/UI';
 import { isTaikyo, isAdmin } from '../lib/roles';
@@ -425,6 +425,11 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                       <div style={{ fontSize: 14, color: 'var(--c-text)', marginTop: 4 }}>
                                         予定数量：{s['予定数量kg']}kg
                                       </div>
+                                      {originIkebaName(masters, s) && (
+                                        <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginTop: 2 }}>
+                                          元の池：{originIkebaName(masters, s)}
+                                        </div>
+                                      )}
                                       <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginTop: 2 }}>
                                         内水面立会者：{tantoushaName(masters, s['内水面立会者ID'])}
                                       </div>

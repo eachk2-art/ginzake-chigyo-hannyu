@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules, getLastUpdated } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, formatDateTimeJP } from '../lib/dateUtils';
-import { ikebaBaseName, ikebaRegion, vehicleLabel, carrierNameByVehicle, kaimenPersonName, kaimenLocation, tantoushaName } from '../lib/masterLookup';
+import { ikebaBaseName, ikebaRegion, vehicleLabel, carrierNameByVehicle, kaimenPersonName, kaimenLocation, tantoushaName, originIkebaName } from '../lib/masterLookup';
 import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge, statusAccentColor } from '../components/UI';
 import CalendarPopup from '../components/CalendarPopup';
@@ -304,6 +304,11 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
                               <div style={{ fontSize: 14, color: 'var(--c-text)', marginTop: 4 }}>
                                 予定数量：{s['予定数量kg']}kg
                               </div>
+                              {originIkebaName(masters, s) && (
+                                <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginTop: 2 }}>
+                                  元の池：{originIkebaName(masters, s)}
+                                </div>
+                              )}
                               <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginTop: 2 }}>
                                 内水面立会者：{tantoushaName(masters, s['内水面立会者ID'])}
                               </div>

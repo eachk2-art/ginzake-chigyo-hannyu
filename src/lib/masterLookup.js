@@ -27,6 +27,24 @@ export function ikebaBaseName(masters, id) {
   return m ? m['池場名'] : id || '';
 }
 
+/**
+ * 出荷池の名前に、元の池（由来）を添える（★2026-11-13）。例：玉山（大沢）
+ * ・schedule は積込予定1件。由来池場IDが空、または出荷池と同じなら、出荷池の名前だけを返す
+ */
+export function ikebaWithOrigin(masters, schedule) {
+  const name = ikebaBaseName(masters, schedule?.['池場ID']);
+  const originId = schedule?.['由来池場ID'];
+  if (!originId || originId === schedule?.['池場ID']) return name;
+  return `${name}（${ikebaBaseName(masters, originId)}）`;
+}
+
+/** 元の池（由来）の名前だけを返す。無ければ空文字 */
+export function originIkebaName(masters, schedule) {
+  const originId = schedule?.['由来池場ID'];
+  if (!originId || originId === schedule?.['池場ID']) return '';
+  return ikebaBaseName(masters, originId);
+}
+
 export function ikebaRegion(masters, id) {
   const m = findById(masters?.池場, '池場ID', id);
   return m ? m['地域表示'] || '' : '';

@@ -5,7 +5,7 @@ import { getSchedules } from '../lib/api';
 import { formatJP, formatSlashJP, formatDateTimeJP, formatTimeDigits, seasonRangeFromTargets, printWithTitle, fileDateStamp } from '../lib/dateUtils';
 import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
-import { ikebaBaseName } from '../lib/masterLookup';
+import { ikebaWithOrigin } from '../lib/masterLookup';
 
 // 印刷したときにA4縦1枚の体裁になるよう、表は最低この行数で組む
 const MIN_PRINT_ROWS = 15;
@@ -83,7 +83,8 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
         const active = items.filter((s) => !isInactive(s['ステータス']));
         const totalKg = active.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
         // ★2026-09-24：内水面業者名ではなく池場名を表示する
-        const ikebaNames = Array.from(new Set(active.map((s) => ikebaBaseName(masters, s['池場ID'])))).filter(
+        // ★2026-11-13：元の池（由来）があれば「玉山（大沢）」のように添える
+        const ikebaNames = Array.from(new Set(active.map((s) => ikebaWithOrigin(masters, s)))).filter(
           Boolean
         );
         const arrivalTimes = active.map((s) => s['到着予定時刻']).filter(Boolean).sort();
