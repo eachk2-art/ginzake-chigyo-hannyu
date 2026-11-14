@@ -13,7 +13,7 @@ import { ErrorMsg } from '../components/UI';
 import BusyButton from '../components/BusyButton';
 import TimeField from '../components/TimeField';
 import { isAdmin } from '../lib/roles';
-import { kaimenName } from '../lib/masterLookup';
+import { kaimenName, pondNameOnly } from '../lib/masterLookup';
 
 const OTHER_TANTOUSHA = '__OTHER__';
 // 車輌を決めずに登録する（★2026-11-14）。保存するときは空欄にする
@@ -249,6 +249,20 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
   const deliveryFiltered = form.海面業者ID !== '' && deliveryMine.length > 0;
   const deliveryOptions = deliveryFiltered ? deliveryMine : deliveryAll;
 
+  // 元の池（由来）の選択肢：出荷池と同じ内水面業者の、出荷池以外の池（★2026-11-14）
+  const shipIkeba = (masters?.池場 || []).find((p) => p['池場ID'] === form.池場ID);
+  const originOptions = shipIkeba
+    ? (masters?.池場 || []).filter(
+        (p) => p['池場ID'] !== form.池場ID && p['内水面業者ID'] === shipIkeba['内水面業者ID']
+      )
+    : [];
+
+  // 出荷池を変えて、元の池が選択肢から外れたら、選んだままにしない
+  useEffect(() => {
+    if (!form.由来池場ID || !masters) return;
+    if (!originOptions.some((p) => p['池場ID'] === form.由来池場ID)) set('由来池場ID', '');
+  }, [form.池場ID, masters]);
+
   // 海面業者を変えたときは、その業者に合わない配送先を選んだままにしない
   useEffect(() => {
     if (!deliveryFiltered) return;
@@ -278,17 +292,21 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
       </Field>
 
       {/* ★2026-11-13：中間魚の段階で別の池から移してきた稚魚のとき、移す前の池を選ぶ。
-          予定表では「玉山（大沢）」のように表示される */}
-      <Field label="元の池（由来）※別の池から移してきた稚魚のときだけ">
-        <select value={form.由来池場ID} onChange={(e) => set('由来池場ID', e.target.value)} style={inputStyle}>
-          <option value="">なし（この池で育った稚魚）</option>
-          {(masters?.池場 || [])
-            .filter((p) => p['池場ID'] !== form.池場ID)
-            .map((p) => (
-              <option key={p['池場ID']} value={p['池場ID']}>
-                {p['池場名']}
-              </option>
-            ))}
+          予定表では「玉山（おいで大沢）」のように表示される。
+          ★2026-11-14：移動は同じ内水面業者の中だけなので、出荷池と同じ業者の池だけを出す */}
+      <Field label="元の池（由来）※同じ業者の別の池から移してきた稚魚のときだけ">
+        <select
+          value={form.由来池場ID}
+          onChange={(e) => set('由来池場ID', e.target.value)}
+          style={inputStyle}
+          disabled={!form.池場ID}
+        >
+          <option value="">{form.池場ID ? 'なし（この池で育った稚魚）' : '先に池場を選んでください'}</option>
+          {originOptions.map((p) => (
+            <option key={p['池場ID']} value={p['池場ID']}>
+              {pondNameOnly(p['池場名'])}
+            </option>
+          ))}
         </select>
       </Field>
 

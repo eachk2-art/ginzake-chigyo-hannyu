@@ -33,16 +33,27 @@ export function ikebaBaseName(masters, id) {
  */
 export function ikebaWithOrigin(masters, schedule) {
   const name = ikebaBaseName(masters, schedule?.['池場ID']);
-  const originId = schedule?.['由来池場ID'];
-  if (!originId || originId === schedule?.['池場ID']) return name;
-  return `${name}（${ikebaBaseName(masters, originId)}）`;
+  const origin = originIkebaName(masters, schedule);
+  if (!origin) return name;
+  // ★2026-11-14：「玉山（おいで）」＋元の池「大沢」→「玉山（おいで大沢）」
+  const m = String(name).match(/^(.*?)\s*[（(]([^（）()]*)[）)]\s*$/);
+  return m ? `${m[1]}（${m[2]}${origin}）` : `${name}（${origin}）`;
 }
 
-/** 元の池（由来）の名前だけを返す。無ければ空文字 */
+/**
+ * 元の池（由来）の名前だけを返す。無ければ空文字。
+ * ★2026-11-14：池場名の後ろの（業者名）は外し、池の名前だけにする。例：大沢（おいで）→ 大沢
+ */
 export function originIkebaName(masters, schedule) {
   const originId = schedule?.['由来池場ID'];
   if (!originId || originId === schedule?.['池場ID']) return '';
-  return ikebaBaseName(masters, originId);
+  return pondNameOnly(ikebaBaseName(masters, originId));
+}
+
+/** 池場名の末尾の（…）を外す。（）が無ければそのまま */
+export function pondNameOnly(name) {
+  const stripped = String(name || '').replace(/\s*[（(][^（）()]*[）)]\s*$/, '');
+  return stripped || name || '';
 }
 
 export function ikebaRegion(masters, id) {
