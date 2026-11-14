@@ -23,6 +23,11 @@ function monthRange(ym) {
   return { from: `${y}-${p(m)}-01`, to: `${y}-${p(m)}-${p(last)}` };
 }
 
+// "2026-11-01" → "2026/11/1"（シーズンの選択肢の表示用）★2026-11-14
+function ymdSlash(str) {
+  return String(str || '').split('-').map(Number).join('/');
+}
+
 function currentYm() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -43,13 +48,23 @@ export default function FareScreen() {
   const [editing, setEditing] = useState(null); // 金額を直す対象の行
   const [message, setMessage] = useState('');
 
-  // シーズンの選択肢は、搬入目標マスタの期間から作る（同じ期間はまとめる）
+  // シーズンの選択肢は、搬入目標マスタから作る。
+  // ★2026-11-14：同じシーズン名は1つにまとめ、期間はいちばん早い開始日〜いちばん遅い終了日にする
+  // （海面業者ごとに開始日・終了日が少し違うと、同じ「2026」が2つ並んでしまっていたため）。
+  // シーズン名が空欄の行だけは、開始日〜終了日の組み合わせでまとめる
   const seasons = useMemo(() => {
     const map = new Map();
     (masters?.搬入目標 || []).forEach((g) => {
-      if (!g['開始日'] || !g['終了日']) return;
-      const key = `${g['開始日']}_${g['終了日']}`;
-      if (!map.has(key)) map.set(key, { id: key, from: g['開始日'], to: g['終了日'], name: g['シーズン'] || '' });
+      if (g['削除フラグ'] || !g['開始日'] || !g['終了日']) return;
+      const name = (g['シーズン'] || '').trim();
+      const key = name ? `name:${name}` : `date:${g['開始日']}_${g['終了日']}`;
+      const cur = map.get(key);
+      if (!cur) {
+        map.set(key, { id: key, from: g['開始日'], to: g['終了日'], name });
+      } else {
+        if (g['開始日'] < cur.from) cur.from = g['開始日'];
+        if (g['終了日'] > cur.to) cur.to = g['終了日'];
+      }
     });
     return Array.from(map.values()).sort((a, b) => (a.from < b.from ? 1 : -1));
   }, [masters]);
@@ -207,11 +222,17 @@ export default function FareScreen() {
             <label htmlFor="fare-season" style={{ fontSize: 13, color: 'var(--c-text-3)' }}>
               シーズン
             </label>
-            <select id="fare-season" value={seasonId} onChange={(e) => setSeasonId(e.target.value)} style={inputStyle}>
+            <select
+              id="fare-season"
+              value={seasons.some((x) => x.id === seasonId) ? seasonId : seasons[0]?.id || ''}
+              onChange={(e) => setSeasonId(e.target.value)}
+              style={inputStyle}
+            >
               {seasons.length === 0 && <option value="">（搬入目標マスタに期間がありません）</option>}
               {seasons.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name || `${s.from}〜${s.to}`}
+                  {/* ★2026-11-14：期間も添えて、何を選んだか分かるようにする */}
+                  {s.name ? `${s.name}（${ymdSlash(s.from)}〜${ymdSlash(s.to)}）` : `${ymdSlash(s.from)}〜${ymdSlash(s.to)}`}
                 </option>
               ))}
             </select>
