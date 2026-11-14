@@ -342,7 +342,7 @@ export default function FareScreen() {
                     <th style={thStyle}>車輌・池場</th>
                     <th style={thStyle}>納品先</th>
                     <th style={{ ...thStyle, textAlign: 'right' }}>数量kg</th>
-                    {admin && <th style={{ ...thStyle, textAlign: 'right' }}>kg単価</th>}
+                    {admin && <th style={{ ...thStyle, textAlign: 'right' }}>単価</th>}
                     <th style={{ ...thStyle, textAlign: 'right' }}>運賃</th>
                   </tr>
                 </thead>
@@ -376,7 +376,19 @@ export default function FareScreen() {
                         </td>
                         {admin && (
                           <td style={{ ...tdStyle, textAlign: 'right' }}>
-                            {r['単価未登録'] ? <span style={{ color: 'var(--c-warn)' }}>未登録</span> : r['kg単価']}
+                            {r['単価未登録'] ? (
+                              <span style={{ color: 'var(--c-warn)' }}>未登録</span>
+                            ) : r['計算方法'] === '1車単価' ? (
+                              // ★2026-11-14：1車単価
+                              <>
+                                <div>1車</div>
+                                <div style={subStyle}>
+                                  {r['1車単価'] !== '' ? `${Number(r['1車単価']).toLocaleString()}円` : ''}
+                                </div>
+                              </>
+                            ) : (
+                              r['kg単価']
+                            )}
                           </td>
                         )}
                         <td style={{ ...tdStyle, textAlign: 'right' }}>
@@ -386,6 +398,8 @@ export default function FareScreen() {
                           {r['計算できない理由'] && (
                             <div style={{ ...subStyle, color: 'var(--c-warn)' }}>{r['計算できない理由']}</div>
                           )}
+                          {/* 1車単価の按分（★2026-11-14） */}
+                          {r['按分'] && <div style={subStyle}>{r['按分']}</div>}
                           {/* 中止便は待機料が精算額になる（★2026-11-06） */}
                           {r['中止'] && r['待機料'] !== '' && (
                             <div style={{ ...subStyle, color: '#5e35b1' }}>待機料</div>
@@ -465,7 +479,11 @@ function FareEditScreen({ auth, masters, row, reasons, onSaved, onClose }) {
         </div>
         <div>
           数量 {Number(row['数量kg']).toLocaleString()}kg（{row['数量種別']}）　
-          {row['kg単価'] ? `単価 ${row['kg単価']}円` : '単価未登録'}　
+          {row['計算方法'] === '1車単価'
+            ? `1車単価 ${row['1車単価'] !== '' ? Number(row['1車単価']).toLocaleString() + '円' : ''}${row['按分'] ? `（${row['按分']}）` : ''}`
+            : row['kg単価']
+              ? `単価 ${row['kg単価']}円`
+              : '単価未登録'}　
           {row['自動運賃'] !== '' ? `自動計算 ${Number(row['自動運賃']).toLocaleString()}円` : ''}
         </div>
         {stopped && (
