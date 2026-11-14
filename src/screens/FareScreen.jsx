@@ -11,7 +11,7 @@ import {
 } from '../lib/api';
 import { isAdmin } from '../lib/roles';
 import { formatSlashJP, printWithTitle, fileDateStamp } from '../lib/dateUtils';
-import { ikebaBaseName, kaimenPersonName, kaimenLocation, vehicleLabel, carrierNameByVehicle } from '../lib/masterLookup';
+import { ikebaBaseName, kaimenPersonName, kaimenLocation, vehicleLabel, vehicleWithCarrier } from '../lib/masterLookup';
 import BusyButton from '../components/BusyButton';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 
@@ -458,7 +458,7 @@ function FareEditScreen({ auth, masters, row, reasons, onSaved, onClose }) {
 
       <div style={{ background: 'var(--c-bg-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '12px 14px', marginBottom: 16, fontSize: 14, lineHeight: 1.8 }}>
         <div>
-          {formatSlashJP(row['積込日'])}　{vehicleLabel(masters, row['車輌ID'])}（{carrierNameByVehicle(masters, row['車輌ID'])}）
+          {formatSlashJP(row['積込日'])}　{vehicleWithCarrier(masters, row['車輌ID'])}
         </div>
         <div>
           {ikebaBaseName(masters, row['池場ID'])} → {kaimenPersonName(masters, row['海面業者ID'])}

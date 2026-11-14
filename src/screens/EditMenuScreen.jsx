@@ -77,13 +77,28 @@ export default function EditMenuScreen({ schedule, onSelect, onClose, onChanged 
         </div>
       )}
 
+      {/* 車輌が未定の便は、実績を入力できない（★2026-11-14） */}
+      {!schedule['車輌ID'] && !inactive && (
+        <div style={noticeStyle}>
+          この便は<b>車輌が未定</b>です。積込実績・搬入実績は、車輌が決まってから入力できます。
+          <br />
+          {isAdmin(auth.role)
+            ? '「予定の編集」から車輌を入れてください。'
+            : '車輌が決まったら、管理者に「予定の編集」で入れてもらってください。'}
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* 予定の編集は管理者のみ（★2026-09-23） */}
         {isAdmin(auth.role) && <MenuButton onClick={() => onSelect('scheduleForm')}>予定の編集</MenuButton>}
         {!locked && !inactive && (
           <>
-            <MenuButton onClick={() => onSelect('loadingResultForm')}>積込実績を入力する</MenuButton>
-            <MenuButton onClick={() => onSelect('deliveryResultForm')}>搬入実績を入力する</MenuButton>
+            {schedule['車輌ID'] && (
+              <>
+                <MenuButton onClick={() => onSelect('loadingResultForm')}>積込実績を入力する</MenuButton>
+                <MenuButton onClick={() => onSelect('deliveryResultForm')}>搬入実績を入力する</MenuButton>
+              </>
+            )}
             <MenuButton onClick={() => onSelect('bulkActions')}>この納品先へまとめて入力する</MenuButton>
           </>
         )}

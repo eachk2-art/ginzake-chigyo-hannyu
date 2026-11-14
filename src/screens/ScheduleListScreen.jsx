@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules, reorderSchedules } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, monthRange } from '../lib/dateUtils';
-import { ikebaName, vehicleLabel, carrierNameByVehicle, kaimenName, tantoushaName, originIkebaName } from '../lib/masterLookup';
+import { ikebaName, vehicleWithCarrier, kaimenName, tantoushaName, originIkebaName } from '../lib/masterLookup';
 import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge } from '../components/UI';
 import { isTaikyo, isAdmin } from '../lib/roles';
@@ -392,8 +392,11 @@ export default function ScheduleListScreen({ onCreateNew, onEditSchedule, initia
                                         }}
                                       >
                                         <span style={{ fontSize: 15, color: 'var(--c-text)', fontWeight: 600 }}>
-                                          {vehicleLabel(masters, s['車輌ID'])}
-                                          （{carrierNameByVehicle(masters, s['車輌ID'])}）
+                                          {!s['車輌ID'] ? (
+                                            <span style={UNDECIDED_BADGE}>車輌未定</span>
+                                          ) : (
+                                            vehicleWithCarrier(masters, s['車輌ID'])
+                                          )}
                                         </span>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                           <StatusBadge status={s['ステータス']} />
@@ -511,3 +514,14 @@ function OrderButton({ label, title, disabled, onClick }) {
     </button>
   );
 }
+
+// 車輌が未定の便の印（★2026-11-14）
+const UNDECIDED_BADGE = {
+  display: 'inline-block',
+  padding: '2px 10px',
+  borderRadius: 999,
+  background: 'var(--c-danger)',
+  color: '#fff',
+  fontSize: 14,
+  fontWeight: 700,
+};

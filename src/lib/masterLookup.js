@@ -61,8 +61,15 @@ export function kaimenLocation(masters, id) {
 }
 
 export function vehicleLabel(masters, id) {
+  if (!id) return '車輌未定'; // ★2026-11-14：車輌を決めずに登録した予定
   const v = findById(masters?.車輌, '車輌ID', id);
-  return v ? v['車番'] : id || '';
+  return v ? v['車番'] : id;
+}
+
+/** 「22-08（フジイ）」のように車番と運送会社を並べる。車輌が未定なら「車輌未定」だけ（★2026-11-14） */
+export function vehicleWithCarrier(masters, id) {
+  if (!id) return '車輌未定';
+  return `${vehicleLabel(masters, id)}（${carrierNameByVehicle(masters, id)}）`;
 }
 
 export function carrierNameByVehicle(masters, vehicleId) {

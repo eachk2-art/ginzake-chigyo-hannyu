@@ -41,10 +41,13 @@ export default function FleetCheckScreen({ onEditSchedule }) {
   // 車輌ごとにまとめ、積載量・重複を判定する
   const vehicles = useMemo(() => {
     if (!schedules) return [];
-    const active = schedules.filter((s) => s['ステータス'] !== '取消' && s['ステータス'] !== '中止');
+    // ★2026-11-14：車輌が未定の便は、車輌のカードに入れず、上の別枠に出す（積載・2回運行の判定にも入れない）
+    const active = schedules.filter(
+      (s) => s['ステータス'] !== '取消' && s['ステータス'] !== '中止' && s['車輌ID']
+    );
     const map = new Map();
     active.forEach((s) => {
-      const id = s['車輌ID'] || '';
+      const id = s['車輌ID'];
       if (!map.has(id)) map.set(id, { vehicleId: id, rows: [] });
       map.get(id).rows.push(s);
     });
@@ -60,8 +63,7 @@ export default function FleetCheckScreen({ onEditSchedule }) {
         const ikebaIds = Array.from(new Set(rows.map((s) => s['池場ID'])));
 
         const warnings = [];
-        if (!v.vehicleId) warnings.push({ level: 'error', text: '車輌が設定されていない予定があります' });
-        if (maxLoad === 0 && v.vehicleId) warnings.push({ level: 'warn', text: '車輌マスタに最大積載数量が登録されていません' });
+        if (maxLoad === 0) warnings.push({ level: 'warn', text: '車輌マスタに最大積載数量が登録されていません' });
         if (maxLoad > 0 && totalKg > maxLoad) {
           warnings.push({
             level: 'error',
@@ -94,13 +96,24 @@ export default function FleetCheckScreen({ onEditSchedule }) {
       .sort((a, b) => String(a.vehicleId).localeCompare(String(b.vehicleId)));
   }, [schedules, masters]);
 
+  // 車輌が未定の便（取消・中止は除く）★2026-11-14
+  const undecided = useMemo(
+    () =>
+      (schedules || [])
+        .filter((s) => !s['車輌ID'] && s['ステータス'] !== '取消' && s['ステータス'] !== '中止')
+        .sort((a, b) => Number(a['積込順'] || 0) - Number(b['積込順'] || 0)),
+    [schedules]
+  );
+  const undecidedKg = undecided.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
+
   const totals = useMemo(() => {
-    const trips = vehicles.reduce((sum, v) => sum + v.rows.length, 0);
-    const kg = vehicles.reduce((sum, v) => sum + v.totalKg, 0);
-    const errors = vehicles.reduce((sum, v) => sum + v.warnings.filter((w) => w.level === 'error').length, 0);
+    const trips = vehicles.reduce((sum, v) => sum + v.rows.length, 0) + undecided.length;
+    const kg = vehicles.reduce((sum, v) => sum + v.totalKg, 0) + undecidedKg;
+    const errors =
+      vehicles.reduce((sum, v) => sum + v.warnings.filter((w) => w.level === 'error').length, 0) + undecided.length;
     const warns = vehicles.reduce((sum, v) => sum + v.warnings.filter((w) => w.level === 'warn').length, 0);
     return { trips, kg, errors, warns, cars: vehicles.length };
-  }, [vehicles]);
+  }, [vehicles, undecided, undecidedKg]);
 
   const cancelled = useMemo(
     () => (schedules || []).filter((s) => s['ステータス'] === '取消' || s['ステータス'] === '中止'),
@@ -151,11 +164,61 @@ export default function FleetCheckScreen({ onEditSchedule }) {
             <Card label="車輌" value={`${totals.cars}台`} />
             <Card label="便数" value={`${totals.trips}便`} />
             <Card label="予定数量" value={`${totals.kg.toLocaleString()}kg`} />
+            {undecided.length > 0 && (
+              <Card label="うち車輌未定" value={`${undecided.length}便・${undecidedKg.toLocaleString()}kg`} tone="error" />
+            )}
             <Card label="要確認" value={`${totals.errors}件`} tone={totals.errors > 0 ? 'error' : 'ok'} />
             <Card label="注意" value={`${totals.warns}件`} tone={totals.warns > 0 ? 'warn' : 'ok'} />
           </div>
 
-          {vehicles.length === 0 && <EmptyMsg>この日の予定はありません</EmptyMsg>}
+          {vehicles.length === 0 && undecided.length === 0 && <EmptyMsg>この日の予定はありません</EmptyMsg>}
+
+          {/* 車輌が未定の便（★2026-11-14）。管理者が予定の編集で車輌を入れると、ここから消えて車輌のカードに入る */}
+          {undecided.length > 0 && (
+            <div
+              style={{
+                background: 'var(--c-bg-2)',
+                border: '2px solid var(--c-danger)',
+                borderRadius: 12,
+                padding: '12px 14px',
+                marginBottom: 10,
+              }}
+            >
+              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--c-danger)' }}>
+                ⚠ 車輌未定の便（{undecided.length}件・{undecidedKg.toLocaleString()}kg）
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginTop: 2 }}>
+                管理者が予定を開いて、車輌を入れてください。車輌が決まるまで、積載量のチェックはかかりません
+              </div>
+              <div style={{ marginTop: 8 }}>
+                {undecided.map((s) => (
+                  <button
+                    key={s['積込予定ID']}
+                    type="button"
+                    onClick={onEditSchedule ? () => onEditSchedule(s) : undefined}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      background: 'var(--c-warn-bg)',
+                      border: '1px solid var(--c-border)',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      marginTop: 6,
+                      color: 'var(--c-text)',
+                      fontSize: 14,
+                      cursor: onEditSchedule ? 'pointer' : 'default',
+                      minHeight: 42,
+                    }}
+                  >
+                    {ikebaBaseName(masters, s['池場ID'])} → {kaimenPersonName(masters, s['海面業者ID'])}　
+                    {(Number(s['予定数量kg']) || 0).toLocaleString()}kg
+                    {s['到着予定時刻'] ? `　着 ${s['到着予定時刻']}` : '　着 —'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {vehicles.map((v) => {
             const hasError = v.warnings.some((w) => w.level === 'error');
@@ -163,7 +226,7 @@ export default function FleetCheckScreen({ onEditSchedule }) {
             const ratio = v.maxLoad > 0 ? Math.min(v.totalKg / v.maxLoad, 1.3) : 0;
             return (
               <div
-                key={v.vehicleId || 'none'}
+                key={v.vehicleId}
                 style={{
                   background: 'var(--c-bg-2)',
                   border: `1px solid ${hasError ? 'var(--c-danger)' : hasWarn ? 'var(--c-warn)' : 'var(--c-border)'}`,
@@ -175,10 +238,10 @@ export default function FleetCheckScreen({ onEditSchedule }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700 }}>
-                      {v.vehicleId ? vehicleLabel(masters, v.vehicleId) : '車輌未設定'}
+                      {vehicleLabel(masters, v.vehicleId)}
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginTop: 2 }}>
-                      {v.vehicleId ? carrierNameByVehicle(masters, v.vehicleId) : ''}
+                      {carrierNameByVehicle(masters, v.vehicleId)}
                       {v.master?.['通常ドライバー担当者ID'] ? `　${driverName(masters, v.master['通常ドライバー担当者ID'])}` : ''}
                     </div>
                   </div>

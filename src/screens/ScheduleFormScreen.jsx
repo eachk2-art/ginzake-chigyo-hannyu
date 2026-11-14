@@ -16,6 +16,8 @@ import { isAdmin } from '../lib/roles';
 import { kaimenName } from '../lib/masterLookup';
 
 const OTHER_TANTOUSHA = '__OTHER__';
+// 車輌を決めずに登録する（★2026-11-14）。保存するときは空欄にする
+const VEHICLE_UNDECIDED = '__UNDECIDED__';
 
 export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onOpenLoadingResult }) {
   const { auth } = useAuth();
@@ -36,7 +38,8 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
     積込日: initial?.['積込日'] || '',
     池場ID: initial?.['池場ID'] || '',
     由来池場ID: initial?.['由来池場ID'] || '',
-    車輌ID: initial?.['車輌ID'] || '',
+    // 編集で、車輌が空の予定は「未定」を選んだ状態で開く
+    車輌ID: initial ? initial['車輌ID'] || VEHICLE_UNDECIDED : '',
     海面業者ID: initial?.['海面業者ID'] || '',
     配送先ID: initial?.['配送先ID'] || '',
     予定数量kg: initial?.['予定数量kg'] || '',
@@ -126,7 +129,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
       if (entries.length === 0) return '車輌を1台以上選択してください';
       if (entries.some(([, qty]) => !Number(qty))) return '選択した車輌すべてに予定数量を入力してください';
     } else {
-      if (!form.車輌ID) return '車輌を選択してください';
+      if (!form.車輌ID) return '車輌を選択してください（決まっていなければ「未定」を選んでください）';
       if (!suryoKg) return '予定数量を入力してください';
     }
     if (tantoushaSel === OTHER_TANTOUSHA && !tantoushaFree.trim()) {
@@ -180,7 +183,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
       積込日: form.積込日,
       池場ID: form.池場ID,
       由来池場ID: originIdForSave(),
-      車輌ID: form.車輌ID,
+      車輌ID: form.車輌ID === VEHICLE_UNDECIDED ? '' : form.車輌ID,
       海面業者ID: form.海面業者ID,
       配送先ID: form.配送先ID,
       予定数量kg: String(suryoKg),
@@ -319,6 +322,7 @@ export default function ScheduleFormScreen({ initial, onSaved, onCancelEdit, onO
         <Field label="車輌">
           <select value={form.車輌ID} onChange={(e) => set('車輌ID', e.target.value)} style={inputStyle}>
             <option value="">選択してください</option>
+            <option value={VEHICLE_UNDECIDED}>未定（あとで管理者が決める）</option>
             {(masters?.車輌 || []).map((v) => {
               const carrier = (masters?.運送会社 || []).find((c) => c['運送会社ID'] === v['運送会社ID']);
               return (

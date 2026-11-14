@@ -39,7 +39,7 @@ export default function DashboardScreen({ onClose }) {
 
   const carrierName = (id) => {
     const c = (masters?.運送会社 || []).find((r) => r['運送会社ID'] === id);
-    return c ? c['略称'] || c['運送会社名'] : id || '（車輌未設定）';
+    return c ? c['略称'] || c['運送会社名'] : id || '（車輌未定）';
   };
 
   // ★2026-11-06：並び順はサーバー側（dashboard.php）で決めている。

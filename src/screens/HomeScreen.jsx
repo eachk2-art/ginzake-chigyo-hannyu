@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getSchedules, getLastUpdated } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, formatDateTimeJP } from '../lib/dateUtils';
-import { ikebaBaseName, ikebaRegion, vehicleLabel, carrierNameByVehicle, kaimenPersonName, kaimenLocation, tantoushaName, originIkebaName } from '../lib/masterLookup';
+import { ikebaBaseName, ikebaRegion, vehicleWithCarrier, kaimenPersonName, kaimenLocation, tantoushaName, originIkebaName } from '../lib/masterLookup';
 import { representativeStatus, isInactive } from '../lib/statusUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge, statusAccentColor } from '../components/UI';
 import CalendarPopup from '../components/CalendarPopup';
@@ -297,7 +297,11 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ fontSize: 15, color: 'var(--c-text)', fontWeight: 600 }}>
-                                  {vehicleLabel(masters, s['車輌ID'])}（{carrierNameByVehicle(masters, s['車輌ID'])}）
+                                  {!s['車輌ID'] ? (
+                                    <span style={UNDECIDED_BADGE}>車輌未定</span>
+                                  ) : (
+                                    vehicleWithCarrier(masters, s['車輌ID'])
+                                  )}
                                 </span>
                                 <StatusBadge status={s['ステータス']} />
                               </div>
@@ -370,4 +374,15 @@ const todayLinkStyle = {
   fontSize: 14,
   cursor: 'pointer',
   padding: '4px 8px',
+};
+
+// 車輌が未定の便の印（★2026-11-14）
+const UNDECIDED_BADGE = {
+  display: 'inline-block',
+  padding: '2px 10px',
+  borderRadius: 999,
+  background: 'var(--c-danger)',
+  color: '#fff',
+  fontSize: 14,
+  fontWeight: 700,
 };
