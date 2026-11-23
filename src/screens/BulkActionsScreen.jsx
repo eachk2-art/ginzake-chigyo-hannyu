@@ -7,6 +7,7 @@ import { ikebaName, kaimenName } from '../lib/masterLookup';
 import { ErrorMsg, LoadingMsg } from '../components/UI';
 import BulkActionsPanel from '../components/BulkActionsPanel';
 import BulkWitnessPanel from '../components/BulkWitnessPanel';
+import BulkEditPanel from '../components/BulkEditPanel';
 import { isAdmin } from '../lib/roles';
 
 export default function BulkActionsScreen({ schedule, onClose }) {
@@ -55,6 +56,12 @@ export default function BulkActionsScreen({ schedule, onClose }) {
       {!error && siblings && isAdmin(auth.role) && (
         <div style={{ marginTop: 16 }}>
           <BulkWitnessPanel schedules={siblings} onDone={() => load(true)} />
+        </div>
+      )}
+      {/* ★2026-11-23：予定をまとめて修正（積込日・池場の変更、車輌を未定に、取消、取消予定の削除）。管理者のみ */}
+      {!error && siblings && isAdmin(auth.role) && (
+        <div style={{ marginTop: 16 }}>
+          <BulkEditPanel schedules={siblings} onDone={() => load(true)} />
         </div>
       )}
     </div>

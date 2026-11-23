@@ -162,6 +162,9 @@ export const bulkConfirmDelivery = (auth, scheduleIds) =>
 // 立会者をまとめて変更（★2026-11-12、管理者のみ）。changes に naisuimen / kaimen のうち変更するものだけを入れる
 export const bulkSetWitness = (auth, scheduleIds, changes) =>
   callAction('bulkSetWitness', { scheduleIds, ...changes }, auth);
+// 予定をまとめて修正（★2026-11-23、管理者のみ）。op：moveDate / changeIkeba / clearVehicle / cancel / delete
+export const bulkEditSchedules = (auth, scheduleIds, op, value, reason) =>
+  callAction('bulkEditSchedules', { scheduleIds, op, value, reason }, auth);
 
 // ---- 海面業者向け：横浦地区の共同予定表 ----
 export const getJointScheduleMarks = (auth, kaimenIds, dateFrom, dateTo) =>
