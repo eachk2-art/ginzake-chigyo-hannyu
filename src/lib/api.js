@@ -157,8 +157,9 @@ export const bulkSetLoadingResultField = (auth, scheduleIds, field, value) =>
   callAction('bulkSetLoadingResultField', { scheduleIds, field, value }, auth);
 export const bulkSetDeliveryResultField = (auth, scheduleIds, field, value) =>
   callAction('bulkSetDeliveryResultField', { scheduleIds, field, value }, auth);
-export const bulkConfirmDelivery = (auth, scheduleIds) =>
-  callAction('bulkConfirmDelivery', { scheduleIds }, auth);
+// includeIncomplete=true：実績・時刻が未入力の便も完了確認する（★2026-11-23）
+export const bulkConfirmDelivery = (auth, scheduleIds, includeIncomplete = false) =>
+  callAction('bulkConfirmDelivery', { scheduleIds, includeIncomplete }, auth);
 // 立会者をまとめて変更（★2026-11-12、管理者のみ）。changes に naisuimen / kaimen のうち変更するものだけを入れる
 export const bulkSetWitness = (auth, scheduleIds, changes) =>
   callAction('bulkSetWitness', { scheduleIds, ...changes }, auth);

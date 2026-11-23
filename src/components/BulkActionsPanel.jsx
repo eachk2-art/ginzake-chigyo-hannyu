@@ -97,6 +97,22 @@ export default function BulkActionsPanel({ scheduleIds, onDone }) {
           <BusyButton variant="danger" onClick={() => run(() => bulkConfirmDelivery(auth, scheduleIds), '完了確認')}>
             まとめて完了確認する
           </BusyButton>
+
+          {/* ★2026-11-23：実績・時刻が未入力の便も、先に完了確認する（数字は後から管理者が入力） */}
+          <div style={{ fontSize: 13, color: 'var(--c-text-3)', margin: '16px 0 8px', lineHeight: 1.6 }}>
+            実績や時刻が未入力の車輌も含めて、まとめて完了確認します。
+            実績が無い車輌は、空の積込実績・搬入実績を作ってから確認します（取消・中止・車輌未定は対象外）。
+            完了確認した便は、後から管理者だけが入力・修正できます。
+          </div>
+          <BusyButton
+            variant="danger"
+            onClick={() => {
+              if (!window.confirm('実績や時刻が未入力の便も含めて、この納品先の便をすべて完了確認します。よろしいですか？\n\n完了確認した便は、太協（現場）からは入力・修正できなくなります。')) return;
+              return run(() => bulkConfirmDelivery(auth, scheduleIds, true), '完了確認（未入力含む）');
+            }}
+          >
+            未入力の便も含めて完了確認する
+          </BusyButton>
         </>
       )}
 
