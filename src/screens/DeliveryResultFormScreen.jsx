@@ -112,6 +112,7 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, details, delive
     作業終了時刻: delivery?.['作業終了時刻'] || '',
     海面水温: delivery?.['海面水温'] ?? '',
     溶存酸素: delivery?.['溶存酸素'] ?? '',
+    車輌水温: delivery?.['車輌水温'] ?? '', // ★2026-11-24：搬入時の運搬車輌の水温
     海面投入後状態: delivery?.['海面投入後状態'] || '',
     詳細: delivery?.['詳細'] || '',
     到着確認: delivery?.['到着確認'] || '',
@@ -292,6 +293,16 @@ function DeliveryResultForm({ auth, masters, schedule, resultId, details, delive
             step="0.1"
             value={form.溶存酸素}
             onChange={(e) => setF('溶存酸素', e.target.value)}
+            style={inputStyle}
+          />
+        </Field>
+        {/* ★2026-11-24：搬入時の運搬車輌（水槽）の水温。溶存酸素は測らない */}
+        <Field label="車輌の水温（℃）" style={{ flex: 1, minWidth: 120 }}>
+          <input
+            type="number"
+            step="0.1"
+            value={form.車輌水温}
+            onChange={(e) => setF('車輌水温', e.target.value)}
             style={inputStyle}
           />
         </Field>
