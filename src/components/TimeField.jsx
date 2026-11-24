@@ -5,7 +5,7 @@ import { formatTimeDigits } from '../lib/dateUtils';
  * 時刻入力：コロン無しの4桁数字をテンキーで入力→自動整形する方式（要件定義書5章）。
  * value / onChange は "HH:mm" 形式の文字列（未入力なら ''）でやり取りする。
  */
-export default function TimeField({ label, value, onChange }) {
+export default function TimeField({ label, value, onChange, disabled = false }) {
   const [digits, setDigits] = useState(value ? value.replace(':', '') : '');
 
   useEffect(() => {
@@ -13,6 +13,7 @@ export default function TimeField({ label, value, onChange }) {
   }, [value]);
 
   function handleInput(e) {
+    if (disabled) return;
     const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
     setDigits(raw);
     if (raw.length === 4) onChange(formatTimeDigits(raw));
@@ -20,6 +21,7 @@ export default function TimeField({ label, value, onChange }) {
   }
 
   function setNow() {
+    if (disabled) return;
     const d = new Date();
     const hhmm = String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
     setDigits(hhmm);
@@ -43,6 +45,7 @@ export default function TimeField({ label, value, onChange }) {
           maxLength={4}
           placeholder="例:0930"
           value={digits}
+          disabled={disabled}
           onChange={handleInput}
           style={{
             width: 100,
@@ -59,6 +62,7 @@ export default function TimeField({ label, value, onChange }) {
         <span style={{ fontSize: 19, fontWeight: 700, minWidth: 56 }}>{display}</span>
         <button
           type="button"
+          disabled={disabled}
           onClick={setNow}
           style={{
             minHeight: 42,
@@ -74,7 +78,7 @@ export default function TimeField({ label, value, onChange }) {
         >
           現在時刻
         </button>
-        {digits && (
+        {digits && !disabled && (
           <button
             type="button"
             onClick={clear}

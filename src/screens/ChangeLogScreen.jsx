@@ -8,6 +8,10 @@ import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 
 const DEFAULT_RANGE_DAYS = 13; // 今日から2週間さかのぼる
 const TABLE_OPTIONS = [
+  // ★2026-11-24 親子方式
+  '搬入予定',
+  '車輌運行',
+  '池場日誌',
   '積込予定',
   '積込実績',
   '積込実績明細',
@@ -26,6 +30,9 @@ const TABLE_OPTIONS = [
 const AUDIT_KEYS = ['削除フラグ', '作成日時', '作成者ログイン事業者ID', '更新日時', '更新者ログイン事業者ID'];
 // 「対象ID」としてすでに見出しに表示している値なので、変更項目の一覧からは除外する
 const PRIMARY_KEY_BY_TABLE = {
+  搬入予定: '搬入予定ID',
+  車輌運行: '運行ID',
+  池場日誌: '池場日誌ID',
   積込予定: '積込予定ID',
   積込実績: '積込実績ID',
   積込実績明細: '積込実績明細ID',
