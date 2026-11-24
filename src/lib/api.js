@@ -3,7 +3,7 @@
 // ・GAS版は2026-09-23に停止。スプレッドシートとGASのコードは凍結保存してある
 // ・★2026-11-24 親子方式：この版の画面は api2 専用。ローカル確認は .env.development.local で api2 に向ける。
 //   切り替えの日に .env とこのフォールバックURLを api2 に変える
-const API_URL = import.meta.env.VITE_API_URL || 'https://e-taikyo.co.jp/chigyo/api/';
+const API_URL = import.meta.env.VITE_API_URL || 'https://e-taikyo.co.jp/chigyo/api2/';
 
 // ログインの有効期限切れ等（PHP版が code:'AUTH_REQUIRED' を返したとき）に呼ぶ処理。
 // AuthContext 側で「ログアウトしてログイン画面に戻す」処理を登録する。
