@@ -46,9 +46,10 @@ export default function FleetCheckScreen({ onEditSchedule }) {
       (s) => s['ステータス'] !== '取消' && s['ステータス'] !== '中止' && s['車輌ID']
     );
     const map = new Map();
+    // ★2026-11-24 親子方式：運行（日付×車輌×回目）ごとにまとめる。2回走る車輌は2枚のカードになる
     active.forEach((s) => {
-      const id = s['車輌ID'];
-      if (!map.has(id)) map.set(id, { vehicleId: id, rows: [] });
+      const id = s['運行ID'] || s['車輌ID'];
+      if (!map.has(id)) map.set(id, { key: id, vehicleId: s['車輌ID'], runNo: Number(s['回目']) || 1, rows: [] });
       map.get(id).rows.push(s);
     });
 
@@ -93,7 +94,7 @@ export default function FleetCheckScreen({ onEditSchedule }) {
         const splitLoad = rows.length > 1;
         return { ...v, rows, master, maxLoad, totalKg, warnings, splitLoad, ikebaIds };
       })
-      .sort((a, b) => String(a.vehicleId).localeCompare(String(b.vehicleId)));
+      .sort((a, b) => String(a.vehicleId).localeCompare(String(b.vehicleId)) || a.runNo - b.runNo);
   }, [schedules, masters]);
 
   // 車輌が未定の便（取消・中止は除く）★2026-11-14
@@ -226,7 +227,7 @@ export default function FleetCheckScreen({ onEditSchedule }) {
             const ratio = v.maxLoad > 0 ? Math.min(v.totalKg / v.maxLoad, 1.3) : 0;
             return (
               <div
-                key={v.vehicleId}
+                key={v.key}
                 style={{
                   background: 'var(--c-bg-2)',
                   border: `1px solid ${hasError ? 'var(--c-danger)' : hasWarn ? 'var(--c-warn)' : 'var(--c-border)'}`,
@@ -239,6 +240,7 @@ export default function FleetCheckScreen({ onEditSchedule }) {
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700 }}>
                       {vehicleLabel(masters, v.vehicleId)}
+                      {v.runNo > 1 && <span style={{ marginLeft: 6, fontSize: 14, color: 'var(--c-warn)' }}>{v.runNo}回目</span>}
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginTop: 2 }}>
                       {carrierNameByVehicle(masters, v.vehicleId)}

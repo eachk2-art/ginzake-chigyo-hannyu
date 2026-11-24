@@ -1,49 +1,32 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
-import { getSchedules, getLastUpdated } from '../lib/api';
+import { getPlanTree, getLastUpdated } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, formatDateTimeJP } from '../lib/dateUtils';
-import { ikebaBaseName, ikebaRegion, vehicleWithCarrier, kaimenPersonName, kaimenLocation, tantoushaName, originIkebaName } from '../lib/masterLookup';
-import { representativeStatus, isInactive } from '../lib/statusUtils';
-import { ErrorMsg, LoadingMsg, EmptyMsg, StatusBadge, statusAccentColor } from '../components/UI';
+import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 import CalendarPopup from '../components/CalendarPopup';
-import { isTaikyo } from '../lib/roles';
+import IkebaCard from '../components/PlanTree';
+import { useSticky, toggleInSet } from '../lib/sticky';
+import { ikebaOrderIndex } from '../lib/planUtils';
 
-export default function HomeScreen({ onEditSchedule, initialFocus }) {
+/**
+ * ホーム（★2026-11-24 親子方式）：1日分を「池場（池場日誌） → 親（海面業者・浜） → 車輌」で表示する
+ * nav：{ openPlan, openRun, openPondLog, openBulk }（App から渡す画面遷移）
+ */
+export default function HomeScreen({ nav }) {
   const { auth } = useAuth();
   const { masters } = useMasters();
-  const canEdit = isTaikyo(auth.role);
-  const [selectedDate, setSelectedDate] = useState(() =>
-    initialFocus ? new Date(initialFocus.date.replace(/-/g, '/')) : today()
-  );
+
+  const [dateStr, setDateStr] = useSticky('home.date', () => toDateStr(today()));
+  const selectedDate = new Date(dateStr.replace(/-/g, '/'));
   const [showCalendar, setShowCalendar] = useState(false);
 
-  const [schedules, setSchedules] = useState(null);
-  const [scheduleError, setScheduleError] = useState('');
-  const [collapsed, setCollapsed] = useState(() => new Set()); // 池場：初期状態は開いている
-  const [openKaimen, setOpenKaimen] = useState(() =>
-    initialFocus ? new Set([`${initialFocus.ikebaId}|${initialFocus.kaimenId}`]) : new Set()
-  ); // 海面業者：初期状態は閉じている（車輌明細を隠す）。ただし戻ってきた先の業者だけは開いておく
+  const [tree, setTree] = useState(null);
+  const [error, setError] = useState('');
+  const [closedIkeba, setClosedIkeba] = useSticky('home.closedIkeba', () => new Set()); // 池場：初期は開く
+  const [openPlans, setOpenPlans] = useSticky('home.openPlans', () => new Set()); // 親：初期は閉じる
 
-  function toggleIkeba(ikebaId) {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(ikebaId)) next.delete(ikebaId);
-      else next.add(ikebaId);
-      return next;
-    });
-  }
-
-  function toggleKaimen(key) {
-    setOpenKaimen((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
-  const [lastUpdated, setLastUpdated] = useState(undefined); // undefined=未取得, null=データなし
+  const [lastUpdated, setLastUpdated] = useState(undefined);
   const [lastUpdatedError, setLastUpdatedError] = useState('');
 
   const loadLastUpdated = useCallback(() => {
@@ -53,97 +36,45 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
       .catch((e) => setLastUpdatedError(e.message));
   }, [auth]);
 
-  const loadSchedules = useCallback(() => {
-    const dateStr = toDateStr(selectedDate);
-    setSchedules(null);
-    setScheduleError('');
-    // groupVisible:true … 運送会社ロールのときだけ、他社車輌が混ざる組み合わせも
-    // まとめて見せる（ドライバー同士が連絡を取り合えるように）。この「他社も見える」
-    // 挙動は当日1日分を見るホーム画面限定。積込予定一覧（期間指定）では意図的に渡さず、
-    // 自社車輌の予定だけに絞る（先々の予定確認・後日の集計のしやすさを優先）。
-    getSchedules(auth, { dateFrom: dateStr, dateTo: dateStr, groupVisible: true })
-      .then(setSchedules)
-      .catch((e) => setScheduleError(e.message));
-  }, [auth, selectedDate]);
+  const load = useCallback(() => {
+    setTree(null);
+    setError('');
+    // groupVisible:true … 運送会社のときだけ、自社の車輌が付いている納品先は他社の車輌も見せる（ホームだけ）
+    getPlanTree(auth, { dateFrom: dateStr, dateTo: dateStr, groupVisible: true })
+      .then(setTree)
+      .catch((e) => setError(e.message));
+  }, [auth, dateStr]);
 
   useEffect(() => {
-    loadSchedules();
-  }, [loadSchedules]);
+    load();
+  }, [load]);
 
   useEffect(() => {
     loadLastUpdated();
   }, [loadLastUpdated]);
 
-  // その日の予定を 池場 → 海面業者 の2階層でまとめる（車輌は海面業者の下にそのまま並べる）。
-  // 単日表示なので、並び順は「積込順」のみで決める（無ければ積込予定IDの下2桁で暫定対応）。
-  const groups = useMemo(() => {
-    if (!schedules) return [];
-    const orderKey = (s) => {
-      const n = Number(s['積込順']);
-      if (!isNaN(n) && s['積込順'] !== '' && s['積込順'] !== undefined) return n;
-      const parts = String(s['積込予定ID']).split('-');
-      const suffix = Number(parts[parts.length - 1]);
-      return isNaN(suffix) ? 999999 : suffix;
-    };
+  const ikebaList = useMemo(() => {
+    const day = (tree || []).find((d) => d['日付'] === dateStr);
+    if (!day) return [];
+    const idx = ikebaOrderIndex(masters);
+    return [...day['池場']].sort((a, b) => idx(a['池場ID']) - idx(b['池場ID']));
+  }, [tree, dateStr, masters]);
 
-    const ikebaOrder = (masters?.池場 || []).map((p) => p['池場ID']);
-    const orderIndex = (id) => {
-      const i = ikebaOrder.indexOf(id);
-      return i === -1 ? ikebaOrder.length : i;
-    };
+  function moveDate(n) {
+    setDateStr(toDateStr(addDays(selectedDate, n)));
+  }
 
-    const byIkeba = new Map();
-    schedules.forEach((s) => {
-      const ikebaId = s['池場ID'];
-      if (!byIkeba.has(ikebaId)) byIkeba.set(ikebaId, new Map());
-      const byKaimen = byIkeba.get(ikebaId);
-      const kaimenId = s['海面業者ID'];
-      if (!byKaimen.has(kaimenId)) byKaimen.set(kaimenId, []);
-      byKaimen.get(kaimenId).push(s);
-    });
-
-    return Array.from(byIkeba.entries())
-      .map(([ikebaId, byKaimen]) => {
-        const kaimenGroups = Array.from(byKaimen.entries())
-          .map(([kaimenId, items]) => {
-            const sorted = [...items].sort((a, b) => orderKey(a) - orderKey(b));
-            // 取消・中止の車輌は、台数・数量の合計に含めない（一覧には表示を残す）
-            const activeItems = sorted.filter((s) => !isInactive(s['ステータス']));
-            const totalKg = activeItems.reduce((sum, s) => sum + (Number(s['予定数量kg']) || 0), 0);
-            return {
-              kaimenId,
-              items: sorted,
-              activeCount: activeItems.length,
-              totalKg,
-              minOrder: orderKey(sorted[0]),
-              status: representativeStatus(sorted),
-            };
-          })
-          .sort((a, b) => a.minOrder - b.minOrder);
-        const totalCount = kaimenGroups.reduce((sum, g) => sum + g.activeCount, 0);
-        const totalKg = kaimenGroups.reduce((sum, g) => sum + g.totalKg, 0);
-        return { ikebaId, kaimenGroups, totalCount, totalKg };
-      })
-      .sort((a, b) => orderIndex(a.ikebaId) - orderIndex(b.ikebaId));
-  }, [schedules, masters]);
+  const isToday = dateStr === toDateStr(today());
 
   return (
-    <div style={{ minHeight: '100vh', width: '100%', overflowX: 'hidden', boxSizing: 'border-box', background: 'var(--c-bg)', color: 'var(--c-text)', paddingBottom: 40 }}>
-      {/* 最終更新日時 */}
+    <div style={{ minHeight: '100vh', width: '100%', overflowX: 'hidden', background: 'var(--c-bg)', color: 'var(--c-text)', paddingBottom: 40 }}>
       <div style={{ padding: '14px 16px 0' }}>
         {lastUpdatedError ? (
           <ErrorMsg message={`最終更新日時の取得に失敗しました：${lastUpdatedError}`} onRetry={loadLastUpdated} />
         ) : lastUpdated === undefined ? (
           <div style={{ fontSize: 14, color: 'var(--c-text-3)' }}>最終更新日時を確認中…</div>
         ) : (
-          <div
-            style={{
-              background: 'var(--c-bg-2)',
-              border: '1px solid var(--c-border)',
-              borderRadius: 12,
-              padding: '12px 16px',
-            }}
-          >
+          <div style={{ background: 'var(--c-bg-2)', border: '1px solid var(--c-border)', borderRadius: 12, padding: '12px 16px' }}>
             <div style={{ fontSize: 12, color: 'var(--c-text-3)' }}>最終更新</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginTop: 2 }}>
               {lastUpdated ? formatDateTimeJP(lastUpdated) : '更新履歴はまだありません'}
@@ -152,25 +83,12 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
         )}
       </div>
 
-      {/* 日付ヘッダー */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          padding: '20px 8px 10px',
-          boxSizing: 'border-box',
-          width: '100%',
-        }}
-      >
-        <button onClick={() => setSelectedDate((d) => addDays(d, -1))} style={arrowBtnStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '20px 8px 10px' }}>
+        <button onClick={() => moveDate(-1)} style={arrowBtnStyle}>
           ‹
         </button>
-        <div style={{ fontSize: 20, fontWeight: 700, minWidth: 120, textAlign: 'center' }}>
-          {formatJP(selectedDate)}
-        </div>
-        <button onClick={() => setSelectedDate((d) => addDays(d, 1))} style={arrowBtnStyle}>
+        <div style={{ fontSize: 20, fontWeight: 700, minWidth: 120, textAlign: 'center' }}>{formatJP(selectedDate)}</div>
+        <button onClick={() => moveDate(1)} style={arrowBtnStyle}>
           ›
         </button>
         <button onClick={() => setShowCalendar(true)} style={{ ...arrowBtnStyle, fontSize: 18 }}>
@@ -178,181 +96,46 @@ export default function HomeScreen({ onEditSchedule, initialFocus }) {
         </button>
       </div>
 
-      {!sameDayAsToday(selectedDate) && (
+      {!isToday && (
         <div style={{ textAlign: 'center' }}>
-          <button onClick={() => setSelectedDate(today())} style={todayLinkStyle}>
+          <button onClick={() => setDateStr(toDateStr(today()))} style={todayLinkStyle}>
             今日に戻る
           </button>
         </div>
       )}
 
-      {/* 予定一覧 */}
       <div style={{ padding: '10px 16px' }}>
-        {scheduleError && (
-          <ErrorMsg message={`予定の取得に失敗しました：${scheduleError}`} onRetry={loadSchedules} />
-        )}
-        {!scheduleError && schedules === null && <LoadingMsg>予定を読み込んでいます…</LoadingMsg>}
-        {!scheduleError && schedules && schedules.length === 0 && (
-          <EmptyMsg>この日の予定はありません</EmptyMsg>
-        )}
-        {!scheduleError &&
-          groups.map(({ ikebaId, kaimenGroups, totalCount, totalKg }) => {
-            const isOpen = !collapsed.has(ikebaId);
-            return (
-              <div
-                key={ikebaId}
-                style={{
-                  background: 'var(--c-bg-2)',
-                  border: '1px solid var(--c-border)',
-                  borderRadius: 12,
-                  marginBottom: 10,
-                  overflow: 'hidden',
-                }}
-              >
-                <button
-                  onClick={() => toggleIkeba(ikebaId)}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    padding: '12px 16px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--c-text)',
-                    cursor: 'pointer',
-                    minHeight: 42,
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span style={{ fontSize: 17, fontWeight: 700 }}>{ikebaBaseName(masters, ikebaId)}</span>
-                    {ikebaRegion(masters, ikebaId) && (
-                      <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--c-text-3)' }}>
-                        {ikebaRegion(masters, ikebaId)}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: 15, fontWeight: 700 }}>
-                      <span>{totalCount}台</span>
-                      <span>{totalKg.toLocaleString()}kg</span>
-                    </div>
-                    <span style={{ color: 'var(--c-text-3)', fontWeight: 400, fontSize: 15 }}>{isOpen ? '▲' : '▼'}</span>
-                  </div>
-                </button>
-                {isOpen &&
-                  kaimenGroups.map(({ kaimenId, items, activeCount, totalKg: kaimenTotalKg, status: kaimenStatus }) => {
-                    const kaimenKey = `${ikebaId}|${kaimenId}`;
-                    const kaimenOpen = openKaimen.has(kaimenKey);
-                    return (
-                      <div key={kaimenId} style={{ borderTop: '1px solid var(--c-border)' }}>
-                        <button
-                          onClick={() => toggleKaimen(kaimenKey)}
-                          style={{
-                            width: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 6,
-                            padding: '10px 16px 10px 12px',
-                            background: 'var(--c-ok-bg)',
-                            border: 'none',
-                            borderLeft: `5px solid ${statusAccentColor(kaimenStatus)}`,
-                            color: 'var(--c-ok)',
-                            cursor: 'pointer',
-                            minHeight: 42,
-                            textAlign: 'left',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                              <span style={{ fontSize: 14, fontWeight: 700 }}>{kaimenPersonName(masters, kaimenId)}</span>
-                              {kaimenLocation(masters, kaimenId) && (
-                                <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.8 }}>
-                                  {kaimenLocation(masters, kaimenId)}
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: 14, fontWeight: 700 }}>
-                              <span>{activeCount}台</span>
-                              <span>{kaimenTotalKg.toLocaleString()}kg</span>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <StatusBadge status={kaimenStatus} />
-                            <span style={{ opacity: 0.8, fontWeight: 400, fontSize: 14 }}>{kaimenOpen ? '▲' : '▼'}</span>
-                          </div>
-                        </button>
-                        {kaimenOpen &&
-                          items.map((s) => (
-                            <div
-                              key={s['積込予定ID']}
-                              onClick={canEdit ? () => onEditSchedule(s) : undefined}
-                              style={{
-                                padding: '10px 16px 10px 28px',
-                                borderTop: '1px solid var(--c-border)',
-                                background: 'var(--c-warn-bg)',
-                                cursor: canEdit ? 'pointer' : 'default',
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: 15, color: 'var(--c-text)', fontWeight: 600 }}>
-                                  {!s['車輌ID'] ? (
-                                    <span style={UNDECIDED_BADGE}>車輌未定</span>
-                                  ) : (
-                                    vehicleWithCarrier(masters, s['車輌ID'])
-                                  )}
-                                </span>
-                                <StatusBadge status={s['ステータス']} />
-                              </div>
-                              <div style={{ fontSize: 14, color: 'var(--c-text)', marginTop: 4 }}>
-                                予定数量：{s['予定数量kg']}kg
-                              </div>
-                              {originIkebaName(masters, s) && (
-                                <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginTop: 2 }}>
-                                  元の池：{originIkebaName(masters, s)}
-                                </div>
-                              )}
-                              <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginTop: 2 }}>
-                                内水面立会者：{tantoushaName(masters, s['内水面立会者ID'])}
-                              </div>
-                              {s['海面立会者ID'] && (
-                                <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginTop: 2 }}>
-                                  海面立会者：{tantoushaName(masters, s['海面立会者ID'])}
-                                </div>
-                              )}
-                              {canEdit && (
-                                <div style={{ fontSize: 13, color: 'var(--c-accent)', marginTop: 6, textAlign: 'right' }}>
-                                  編集 ›
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    );
-                  })}
-              </div>
-            );
-          })}
+        {error && <ErrorMsg message={`予定の取得に失敗しました：${error}`} onRetry={load} />}
+        {!error && tree === null && <LoadingMsg>予定を読み込んでいます…</LoadingMsg>}
+        {!error && tree && ikebaList.length === 0 && <EmptyMsg>この日の予定はありません</EmptyMsg>}
+        {!error &&
+          ikebaList.map((node) => (
+            <IkebaCard
+              key={node['池場ID']}
+              date={dateStr}
+              node={node}
+              masters={masters}
+              role={auth.role}
+              open={!closedIkeba.has(node['池場ID'])}
+              onToggle={() => toggleInSet(setClosedIkeba, node['池場ID'])}
+              planOpen={(id) => openPlans.has(id)}
+              onTogglePlan={(id) => toggleInSet(setOpenPlans, id)}
+              onOpenPlan={nav.openPlan}
+              onOpenRun={nav.openRun}
+              onOpenPondLog={nav.openPondLog}
+              onOpenBulk={nav.openBulk}
+            />
+          ))}
       </div>
 
       {showCalendar && (
         <CalendarPopup
           selectedDate={selectedDate}
-          onSelect={setSelectedDate}
+          onSelect={(d) => setDateStr(toDateStr(d))}
           onClose={() => setShowCalendar(false)}
         />
       )}
     </div>
-  );
-}
-
-function sameDayAsToday(date) {
-  const t = today();
-  return (
-    date.getFullYear() === t.getFullYear() &&
-    date.getMonth() === t.getMonth() &&
-    date.getDate() === t.getDate()
   );
 }
 
@@ -374,15 +157,4 @@ const todayLinkStyle = {
   fontSize: 14,
   cursor: 'pointer',
   padding: '4px 8px',
-};
-
-// 車輌が未定の便の印（★2026-11-14）
-const UNDECIDED_BADGE = {
-  display: 'inline-block',
-  padding: '2px 10px',
-  borderRadius: 999,
-  background: 'var(--c-danger)',
-  color: '#fff',
-  fontSize: 14,
-  fontWeight: 700,
 };

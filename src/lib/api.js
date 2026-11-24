@@ -1,7 +1,9 @@
 // 接続先URL（さくらのPHP版API）。
 // ・.env の VITE_API_URL と、下のフォールバックURLは必ず同じ値にすること
 // ・GAS版は2026-09-23に停止。スプレッドシートとGASのコードは凍結保存してある
-const API_URL = import.meta.env.VITE_API_URL || 'https://e-taikyo.co.jp/chigyo/api/';
+// ・★2026-11-24 親子方式：この版の画面は api2 専用。ローカル確認は .env.development.local で api2 に向ける。
+//   切り替えの日に .env とこのフォールバックURLを api2 に変える
+const API_URL = import.meta.env.VITE_API_URL || 'https://e-taikyo.co.jp/chigyo/api2/';
 
 // ログインの有効期限切れ等（PHP版が code:'AUTH_REQUIRED' を返したとき）に呼ぶ処理。
 // AuthContext 側で「ログアウトしてログイン画面に戻す」処理を登録する。
@@ -11,13 +13,10 @@ export function setAuthExpiredHandler(fn) {
 }
 
 /**
- * API（PHP版／GAS版）へのPOST共通処理。
+ * APIへのPOST共通処理。
  * ・CORS制約のため Content-Type は必ず text/plain にする
- * ・loginId / role / refId は呼び出し側から渡された auth を毎回自動で付与する
- *   （GASはリクエストごとに独立しており、サーバー側にセッションを持たないため）
- * ・GASは負荷や再デプロイ直後などに、まれに一時的な通信エラー（404等）を
- *   返すことがあるため、失敗時は少し間を空けて自動で数回リトライする
- *   （新規開発プロンプト5章「連動する動作」の原則）
+ * ・失敗時（通信そのものの失敗・HTTPエラー）は少し間を空けて自動で数回リトライする
+ * ・業務エラーは error.code にサーバーのコード（例：MERGE_CONFIRM）を入れて投げる
  */
 const RETRY_COUNT = 3; // 初回＋最大3回リトライ＝最大4回試行
 const RETRY_DELAY_MS = 600;
@@ -32,7 +31,7 @@ async function callAction(action, params = {}, auth = null) {
     loginId: auth?.loginId || '',
     role: auth?.role || '',
     refId: auth?.refId || '',
-    token: auth?.token || '', // PHP版はこのトークンでログイン中の事業者を確認する（GAS版は無視する）
+    token: auth?.token || '', // PHP版はこのトークンでログイン中の事業者を確認する
     ...params,
   };
 
@@ -46,7 +45,6 @@ async function callAction(action, params = {}, auth = null) {
       });
 
       if (!res.ok) {
-        // HTTPエラー（404等）はGAS側の一時的な不調のことが多いのでリトライ対象にする
         lastError = new Error(`通信エラーが発生しました（HTTP ${res.status}）`);
         if (attempt < RETRY_COUNT) {
           await sleep(RETRY_DELAY_MS * (attempt + 1));
@@ -57,16 +55,16 @@ async function callAction(action, params = {}, auth = null) {
 
       const json = await res.json();
       if (!json.success) {
-        // ログインの有効期限切れ等は、ログイン画面に戻す
         if (json.code === 'AUTH_REQUIRED' && onAuthExpired) onAuthExpired();
-        // アプリ側の業務エラー（PIN違い等）はリトライしても直らないので即座に投げる
-        throw new Error(json.error || '不明なエラーが発生しました');
+        // 業務エラーはリトライしても直らないので即座に投げる
+        const err = new Error(json.error || '不明なエラーが発生しました');
+        err.code = json.code || '';
+        err.business = true;
+        throw err;
       }
       return json.data;
     } catch (e) {
       lastError = e;
-      // fetch自体が失敗した場合（電波状況等）や一時的なHTTPエラーはリトライする。
-      // 業務エラー（success:falseから投げたもの）はリトライしても直らないので即座に投げる。
       if (attempt < RETRY_COUNT && isRetryable_(e)) {
         await sleep(RETRY_DELAY_MS * (attempt + 1));
         continue;
@@ -79,93 +77,88 @@ async function callAction(action, params = {}, auth = null) {
 
 /** リトライして意味があるエラーか（通信そのものの失敗／一時的なHTTPエラー）を判定する */
 function isRetryable_(e) {
-  if (!e || typeof e.message !== 'string') return false;
+  if (!e || typeof e.message !== 'string' || e.business) return false;
   if (e.message.indexOf('通信エラーが発生しました') === 0) return true; // HTTPエラー
   if (e instanceof TypeError) return true; // fetch自体が失敗（ネットワーク不通等）
   return false;
 }
 
 // ---- 認証（ログイン前なのでauthなしで呼ぶ） ----
-// 入口キー（URLの ?e=）で、表示する事業者を出し分ける
 export const getLoginTiles = (entryKey) => callAction('getLoginTiles', { entryKey });
 export const login = (loginId, pin, entryKey) => callAction('login', { loginId, pin, entryKey });
-// ★2026-11-13：確認用マスターPIN（setMasterPin / getMasterPinStatus）は廃止
 
 // ---- 表示切替（★2026-11-13）。太協・管理者が、他の事業者の見え方を閲覧専用で確認する ----
-// getViewTargets / switchView は必ず「元のログイン」の auth で呼ぶ（確認用ログインからは切り替えられない）
 export const getViewTargets = (auth) => callAction('getViewTargets', {}, auth);
 export const switchView = (auth, targetLoginId) => callAction('switchView', { targetLoginId }, auth);
-// 切替用に発行されたトークンを無効にする（切替中の auth で呼ぶ）
 export const endView = (auth) => callAction('endView', {}, auth);
 
 // ---- マスタ ----
 export const getMasters = (auth) => callAction('getMasters', {}, auth);
 
-// ---- 積込予定 ----
+// ---- 便（割当）の形での読み取り（予定表・配車チェックなどが使う） ----
 export const getSchedules = (auth, params) => callAction('getSchedules', params, auth);
-export const getScheduleDetail = (auth, scheduleId) =>
-  callAction('getScheduleDetail', { scheduleId }, auth);
-export const createSchedule = (auth, data) => callAction('createSchedule', { data }, auth);
-export const updateSchedule = (auth, scheduleId, data) =>
-  callAction('updateSchedule', { scheduleId, data }, auth);
-export const cancelSchedule = (auth, scheduleId, reason) =>
-  callAction('cancelSchedule', { scheduleId, reason }, auth);
-// 中止：当日の天候・海況などで実行できなかった便（★2026-11-06。太協・管理者）
-export const stopSchedule = (auth, scheduleId, reason, note) =>
-  callAction('stopSchedule', { scheduleId, reason, note }, auth);
-// 中止を取り消して通常の予定に戻す（管理者のみ）
-export const resumeSchedule = (auth, scheduleId) =>
-  callAction('resumeSchedule', { scheduleId }, auth);
-// 中止理由の選択肢（サーバー側の STOP_REASONS と合わせる）
-export const STOP_REASONS = ['積雪', '暴風', '時化', 'その他'];
-// 取消にした予定を一覧から消す（管理者のみ。データは削除フラグで残る）
-export const deleteSchedule = (auth, scheduleId) => callAction('deleteSchedule', { scheduleId }, auth);
-export const bulkCreateSchedule = (auth, dataList) =>
-  callAction('bulkCreateSchedule', { dataList }, auth);
-// 積込順の並べ替え（納品先のまとまり・車輌のどちらの入れ替えにも使う）
-export const reorderSchedules = (auth, date, ikebaId, scheduleIds) =>
-  callAction('reorderSchedules', { date, ikebaId, scheduleIds }, auth);
-
-// ---- 積込実績・搬入実績 ----
-export const createLoadingResult = (auth, scheduleId, header, details) =>
-  callAction('createLoadingResult', { scheduleId, header, details }, auth);
-export const updateLoadingResult = (auth, resultId, header, details) =>
-  callAction('updateLoadingResult', { resultId, header, details }, auth);
-export const createDeliveryResult = (auth, scheduleId, resultId, data) =>
-  callAction('createDeliveryResult', { scheduleId, resultId, data }, auth);
-export const updateDeliveryResult = (auth, deliveryId, data) =>
-  callAction('updateDeliveryResult', { deliveryId, data }, auth);
-export const confirmDelivery = (auth, deliveryId) =>
-  callAction('confirmDelivery', { deliveryId }, auth);
-// 実績を丸ごと削除する（管理者のみ。データは削除フラグで残る）
-export const deleteLoadingResult = (auth, resultId) =>
-  callAction('deleteLoadingResult', { resultId }, auth);
-export const deleteDeliveryResult = (auth, deliveryId) =>
-  callAction('deleteDeliveryResult', { deliveryId }, auth);
-
-// ---- 一覧・連絡先・集計 ----
-export const getCompletedSchedules = (auth, params) =>
-  callAction('getCompletedSchedules', params, auth);
-export const getCarrierSummary = (auth, params) => callAction('getCarrierSummary', params, auth);
-export const getAggregates = (auth, aggregateType, params) =>
-  callAction('getAggregates', { aggregateType, ...params }, auth);
+export const getScheduleDetail = (auth, scheduleId) => callAction('getScheduleDetail', { scheduleId }, auth);
+export const getCompletedSchedules = (auth, params) => callAction('getCompletedSchedules', params, auth);
 export const getChangeLog = (auth, params) => callAction('getChangeLog', params, auth);
 export const getLastUpdated = (auth) => callAction('getLastUpdated', {}, auth);
 
-// ---- 一括操作（同じ海面業者向けの複数車輌にまとめて反映） ----
-export const bulkSetLoadingResultField = (auth, scheduleIds, field, value) =>
-  callAction('bulkSetLoadingResultField', { scheduleIds, field, value }, auth);
-export const bulkSetDeliveryResultField = (auth, scheduleIds, field, value) =>
-  callAction('bulkSetDeliveryResultField', { scheduleIds, field, value }, auth);
-// includeIncomplete=true：実績・時刻が未入力の便も完了確認する（★2026-11-23）
-export const bulkConfirmDelivery = (auth, scheduleIds, includeIncomplete = false) =>
-  callAction('bulkConfirmDelivery', { scheduleIds, includeIncomplete }, auth);
-// 立会者をまとめて変更（★2026-11-12、管理者のみ）。changes に naisuimen / kaimen のうち変更するものだけを入れる
-export const bulkSetWitness = (auth, scheduleIds, changes) =>
-  callAction('bulkSetWitness', { scheduleIds, ...changes }, auth);
-// 予定をまとめて修正（★2026-11-23、管理者のみ）。op：moveDate / changeIkeba / clearVehicle / cancel / delete
-export const bulkEditSchedules = (auth, scheduleIds, op, value, reason) =>
-  callAction('bulkEditSchedules', { scheduleIds, op, value, reason }, auth);
+// 中止理由の選択肢（サーバー側の STOP_REASONS と合わせる）
+export const STOP_REASONS = ['積雪', '暴風', '時化', 'その他'];
+
+// ==== 親子方式（★2026-11-24） ====
+// 親＝搬入予定（日付×池場×海面業者×浜）、割当＝親にぶら下がる車輌（t_schedule の行）、
+// 運行＝日付×車輌×回目（積込・計量はここに入れる）、池場日誌＝日付×池場
+
+// ---- 読み取り ----
+/** 日付 → 池場（池場日誌） → 親 → 割当。params：{ dateFrom, dateTo, groupVisible, kaimenId } */
+export const getPlanTree = (auth, params) => callAction('getPlanTree', params, auth);
+export const getPlanDetail = (auth, planId) => callAction('getPlanDetail', { planId }, auth);
+export const getRunDetail = (auth, runId) => callAction('getRunDetail', { runId }, auth);
+
+// ---- 親（搬入予定） ----
+/** dataList：[{積込日, 池場ID, 海面業者ID, 配送先ID, 予定数量kg, 予定入れ目率, 到着予定時刻, 由来池場ID, 備考,
+ *   予定海面立会者ID1/2（管理者のみ）, 車輌: [{車輌ID, 割当数量kg, 回目}]}] */
+export const createPlans = (auth, dataList) => callAction('createPlans', { dataList }, auth);
+export const updatePlan = (auth, planId, data) => callAction('updatePlan', { planId, data }, auth);
+/** 浜の変更。同じ浜の親があると error.code === 'MERGE_CONFIRM'。まとめるときは merge=true で呼び直す */
+export const changePlanHama = (auth, planId, deliveryPointId, merge = false) =>
+  callAction('changePlanHama', { planId, deliveryPointId, merge }, auth);
+export const cancelPlan = (auth, planId, reason) => callAction('cancelPlan', { planId, reason }, auth);
+export const deletePlan = (auth, planId) => callAction('deletePlan', { planId }, auth);
+export const stopPlan = (auth, planId, reason, note) => callAction('stopPlan', { planId, reason, note }, auth);
+export const resumePlan = (auth, planId) => callAction('resumePlan', { planId }, auth);
+export const reorderPlans = (auth, date, ikebaId, planIds) =>
+  callAction('reorderPlans', { date, ikebaId, planIds }, auth);
+
+// ---- 割当（車輌） ----
+export const assignVehicle = (auth, planId, vehicleId, kg, runNo) =>
+  callAction('assignVehicle', { planId, vehicleId, kg, runNo }, auth);
+/** changes：{ kg, vehicleId, runNo } のうち変えるものだけ */
+export const updateAllocation = (auth, scheduleId, changes) =>
+  callAction('updateAllocation', { scheduleId, ...changes }, auth);
+export const unassignVehicle = (auth, scheduleId) => callAction('unassignVehicle', { scheduleId }, auth);
+export const stopAllocation = (auth, scheduleId, reason, note) =>
+  callAction('stopAllocation', { scheduleId, reason, note }, auth);
+export const resumeAllocation = (auth, scheduleId) => callAction('resumeAllocation', { scheduleId }, auth);
+export const reorderAllocations = (auth, planId, scheduleIds) =>
+  callAction('reorderAllocations', { planId, scheduleIds }, auth);
+
+// ---- 積込（運行）・池場日誌 ----
+/** header：{積込開始時刻, 積込終了時刻, ワクチン本数, 積込回数, 備考}
+ *  details：[{明細ID?, 池場ID, 実績数量kg, 平均サイズg, 行き先搬入予定ID}]（あるべき最終形を送る） */
+export const saveRun = (auth, runId, header, details) => callAction('saveRun', { runId, header, details }, auth);
+/** data：{天候, 気温, 水温, 溶存酸素, 内水面立会者ID1, 内水面立会者ID2, 備考} */
+export const savePondLog = (auth, date, ikebaId, data) => callAction('savePondLog', { date, ikebaId, data }, auth);
+
+// ---- 現場（浜）・完了確認 ----
+export const savePlanDelivery = (auth, planId, data) => callAction('savePlanDelivery', { planId, data }, auth);
+/** data：{車輌水温, 出発時刻上書き, 浜到着時刻上書き, 作業開始時刻上書き, 作業終了時刻上書き} */
+export const saveAllocationDelivery = (auth, scheduleId, data) =>
+  callAction('saveAllocationDelivery', { scheduleId, data }, auth);
+export const confirmPlans = (auth, planIds) => callAction('confirmPlans', { planIds }, auth);
+/** operation：changeDate（extra.date）／changeIkeba（extra.ikebaId）／cancel（extra.reason）／deleteCancelled */
+export const bulkEditPlans = (auth, planIds, operation, extra = {}) =>
+  callAction('bulkEditPlans', { planIds, operation, ...extra }, auth);
 
 // ---- 海面業者向け：横浦地区の共同予定表 ----
 export const getJointScheduleMarks = (auth, kaimenIds, dateFrom, dateTo) =>
@@ -189,7 +182,7 @@ export const exportFares = (auth, dateFrom, dateTo, qtyMode, carrierId, scope, f
 // ---- 集計ダッシュボード（SCR-130、太協・管理者）★2026-11-06 ----
 export const getDashboard = (auth, params) => callAction('getDashboard', params || {}, auth);
 
-// ---- マスタ管理（SCR-100、太協のみ。PHP版でのみ使える） ----
+// ---- マスタ管理（SCR-100） ----
 export const adminListMaster = (auth, master, includeDeleted = true) =>
   callAction('adminListMaster', { master, includeDeleted }, auth);
 export const adminSuggestId = (auth, master, parentId) =>
