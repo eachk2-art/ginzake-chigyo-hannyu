@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
 import { getRunDetail, getSchedules, saveRun } from '../lib/api';
@@ -12,6 +12,7 @@ import { isAdmin } from '../lib/roles';
 import { num, kgText, fishSummary, weighTarget, isInactiveStatus } from '../lib/planUtils';
 
 const MAX_DETAILS = 6;
+const ROUNDS_LIMIT = 20; // 積込回数から自動で作る計量欄の上限
 const SMALL_UNIT_KG = 250; // 計量は250kgバケット単位
 
 /**
@@ -90,16 +91,46 @@ function RunForm({ auth, masters, run, items, title, loadError, onReload, onClos
     積込回数: run['積込回数'] ?? '',
     備考: run['備考'] || '',
   });
+  // 計量の空の欄を1つ作る（直前の回の平均サイズ・行き先を引き継ぐ）
+  function blankRow(rs) {
+    const last = [...rs].reverse().find((r) => String(r.平均サイズg || '') !== '');
+    const lastDest = rs.length > 0 ? rs[rs.length - 1].行き先 : '';
+    return {
+      id: null,
+      池場ID: lastDest ? ikebaOfPlan(lastDest) : defaultIkeba,
+      実績数量kg: '',
+      平均サイズg: last ? last.平均サイズg : '',
+      行き先: needDest ? lastDest : '',
+    };
+  }
+  // 積込回数の数まで、空の欄を足す（★2026-11-25）
+  function fillTo(rs, n) {
+    const out = [...rs];
+    while (out.length < Math.min(n, ROUNDS_LIMIT)) out.push(blankRow(out));
+    return out;
+  }
+  const isBlankNew = (r) => !r.id && String(r.実績数量kg ?? '') === '';
   const [rows, setRows] = useState(() =>
-    (run['明細'] || []).map((d) => ({
-      id: d['明細ID'],
-      池場ID: d['池場ID'] || defaultIkeba,
-      実績数量kg: d['実績数量kg'] ?? '',
-      平均サイズg: d['平均サイズg'] ?? '',
-      行き先: d['行き先搬入予定ID'] || '',
-    }))
+    fillTo(
+      (run['明細'] || []).map((d) => ({
+        id: d['明細ID'],
+        池場ID: d['池場ID'] || defaultIkeba,
+        実績数量kg: d['実績数量kg'] ?? '',
+        平均サイズg: d['平均サイズg'] ?? '',
+        行き先: d['行き先搬入予定ID'] || '',
+      })),
+      num(run['積込回数'])
+    )
   );
-  const snapOf = (h, rs) => JSON.stringify({ h, rs: rs.map((r) => [r.id || null, r.池場ID, String(r.実績数量kg), String(r.平均サイズg), r.行き先]) });
+  // 「＋計量明細を追加」で足した欄の数量にカーソルを置く（★2026-11-25）
+  const qtyRefs = useRef([]);
+  const [focusIdx, setFocusIdx] = useState(null);
+  useEffect(() => {
+    if (focusIdx === null) return;
+    qtyRefs.current[focusIdx]?.focus();
+    setFocusIdx(null);
+  }, [focusIdx]);
+  const snapOf = (h, rs) => JSON.stringify({ h, rs: rs.filter((r) => !isBlankNew(r)).map((r) => [r.id || null, r.池場ID, String(r.実績数量kg), String(r.平均サイズg), r.行き先]) });
   const [savedSnap, setSavedSnap] = useState(() => snapOf(header, rows));
   const isSaved = savedSnap === snapOf(header, rows);
   const [error, setError] = useState('');
@@ -132,23 +163,23 @@ function RunForm({ auth, masters, run, items, title, loadError, onReload, onClos
   const capacityKg = num(vehicle?.['最大積載数量kg']) || num(vehicle?.['水槽容量']) * num(vehicle?.['水槽数']);
   const suggestedRounds = capacityKg > 0 ? Math.ceil(capacityKg / SMALL_UNIT_KG) : 0;
   const plannedRounds = num(header.積込回数) > 0 ? num(header.積込回数) : suggestedRounds;
-  const maxDetails = Math.max(MAX_DETAILS, plannedRounds);
+  const maxDetails = Math.max(MAX_DETAILS, plannedRounds + 2); // 積込回数より多く積んだときのため、2回分の余裕を持たせる
 
   function addRow() {
     if (rows.length >= maxDetails) return;
+    setFocusIdx(rows.length);
+    setRows((rs) => [...rs, blankRow(rs)]);
+  }
+
+  // 積込回数を入れたら、その数まで計量の欄を出す。減らしたときは、後ろの未入力の欄だけ消す（★2026-11-25）
+  function changeRounds(v) {
+    setH('積込回数', v);
+    const n = num(v);
     setRows((rs) => {
-      const last = [...rs].reverse().find((r) => String(r.平均サイズg || '') !== '');
-      const lastDest = rs.length > 0 ? rs[rs.length - 1].行き先 : '';
-      return [
-        ...rs,
-        {
-          id: null,
-          池場ID: lastDest ? ikebaOfPlan(lastDest) : defaultIkeba,
-          実績数量kg: '',
-          平均サイズg: last ? last.平均サイズg : '',
-          行き先: needDest ? lastDest : '',
-        },
-      ];
+      if (n > rs.length) return fillTo(rs, n);
+      const out = [...rs];
+      while (out.length > n && out.length > 0 && isBlankNew(out[out.length - 1])) out.pop();
+      return out;
     });
   }
 
@@ -162,9 +193,10 @@ function RunForm({ auth, masters, run, items, title, loadError, onReload, onClos
   const totalKg = rows.reduce((s, r) => s + num(r.実績数量kg), 0);
   const totalTarget = dests.filter((d) => !isInactiveStatus(d.a['予定状態'])).reduce((s, d) => s + d.target, 0);
   const remainingKg = totalTarget - totalKg;
-  const remainingRounds = Math.max(plannedRounds - rows.length, 0);
+  const enteredRows = rows.filter((r) => !isBlankNew(r)).length; // 数量を入れた回の数
+  const remainingRounds = Math.max(plannedRounds - enteredRows, 0);
   const perBucketKg = remainingRounds > 0 && remainingKg > 0 ? Math.round(remainingKg / remainingRounds) : 0;
-  const noDestCount = needDest ? rows.filter((r) => !r.行き先).length : 0;
+  const noDestCount = needDest ? rows.filter((r) => !isBlankNew(r) && !r.行き先).length : 0;
 
   async function handleSave() {
     setError('');
@@ -172,7 +204,8 @@ function RunForm({ auth, masters, run, items, title, loadError, onReload, onClos
       setError('積み分けの車輌です。計量の行き先（どの納品先の分か）をすべての回で選んでください');
       return;
     }
-    const details = rows.map((r) => {
+    // 積込回数から自動で出した欄のうち、数量を入れていないものは送らない
+    const details = rows.filter((r) => !isBlankNew(r)).map((r) => {
       const d = { 池場ID: r.池場ID, 実績数量kg: r.実績数量kg, 平均サイズg: r.平均サイズg ?? '', 行き先搬入予定ID: r.行き先 };
       if (r.id) d['明細ID'] = r.id;
       return d;
@@ -186,7 +219,7 @@ function RunForm({ auth, masters, run, items, title, loadError, onReload, onClos
         平均サイズg: d['平均サイズg'] ?? '',
         行き先: d['行き先搬入予定ID'] || '',
       }));
-      setRows(newRows);
+      setRows(fillTo(newRows, num(header.積込回数)));
       setSavedSnap(snapOf(header, newRows));
     } catch (e) {
       setError(e.message);
@@ -253,7 +286,7 @@ function RunForm({ auth, masters, run, items, title, loadError, onReload, onClos
               value={header.積込回数}
               disabled={disabled}
               placeholder={suggestedRounds > 0 ? String(suggestedRounds) : ''}
-              onChange={(e) => setH('積込回数', e.target.value)}
+              onChange={(e) => changeRounds(e.target.value)}
               style={inputStyle}
             />
           </Field>
@@ -268,7 +301,7 @@ function RunForm({ auth, masters, run, items, title, loadError, onReload, onClos
         </Field>
       </Section>
 
-      <Section title={`計量明細（合計 ${kgText(totalKg)}kg・${rows.length}回）`}>
+      <Section title={`計量明細（合計 ${kgText(totalKg)}kg・${enteredRows}回）`}>
         {totalTarget > 0 && (
           <div style={{ border: '1px solid var(--c-border-2)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 14, background: 'var(--c-bg)' }}>
             <div style={{ color: 'var(--c-text-2)' }}>この車輌の目標（入れ目込み）：{totalTarget.toLocaleString()}kg</div>
@@ -338,7 +371,14 @@ function RunForm({ auth, masters, run, items, title, loadError, onReload, onClos
               )}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Field label="実績数量（kg）" style={{ flex: 1, minWidth: 130 }}>
-                  <input type="number" inputMode="decimal" value={r.実績数量kg} disabled={disabled} onChange={(e) => setRow(i, '実績数量kg', e.target.value)} style={inputStyle} />
+                  <input
+                    ref={(el) => {
+                      qtyRefs.current[i] = el;
+                    }}
+                    type="number"
+                    inputMode="decimal"
+                    value={r.実績数量kg}
+                    disabled={disabled} onChange={(e) => setRow(i, '実績数量kg', e.target.value)} style={inputStyle} />
                 </Field>
                 <Field label="平均サイズ（g）" style={{ flex: 1, minWidth: 130 }}>
                   <input type="number" inputMode="decimal" value={r.平均サイズg} disabled={disabled} onChange={(e) => setRowSize(i, e.target.value)} style={inputStyle} />

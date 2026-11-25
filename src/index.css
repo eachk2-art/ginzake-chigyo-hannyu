@@ -189,3 +189,14 @@ textarea {
   height: auto;
   display: block;
 }
+
+/* ★2026-11-25：数値欄の上下ボタンを出さない（マウスのスクロールで値が変わる原因になるため） */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
