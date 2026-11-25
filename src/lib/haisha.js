@@ -1,12 +1,11 @@
 // 配車表（★2026-11-25）：担当者がExcelで作っていた「予定表（配車表）」と同じ並びを、アプリのデータから作る
-//   列：車輌（運送会社ごと → 通常ドライバーの名字＋車番）。車輌マスタの「配車表の列順」が入っている車輌が固定の列
-//       ＋ スポットの列（列順が空欄の車輌、同じ日に2回目を走る車輌）。最低2列
+//   列：車輌（運送会社ごと → 通常ドライバーの名字＋車番）。車輌マスタの「配車表の列順」の順に並べる
+//       （★11/25 スポットの列はやめた。列順が空欄の車輌が走ったとき・同じ日に2回目を走ったときだけ、右端に列を足す）
 //   行：1日3段（上：積込順＋池場　中：浜（海面業者の所在地）：生産者　下：数量ｔ）
 //   1週間（7日）で1ブロック
 import { ikebaBaseName, pondNameOnly, kaimenPersonName, kaimenLocation, tantoushaName } from './masterLookup';
 import { num } from './planUtils';
 
-export const MIN_SPOT_COLS = 2;
 const CIRCLED = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
 
 export function circled(n) {
@@ -35,16 +34,6 @@ export function vehicleHeader(masters, vehicleId) {
   if (!v) return vehicleId || '';
   const driver = v['通常ドライバー担当者ID'] ? familyName(tantoushaName(masters, v['通常ドライバー担当者ID'])) : '';
   return [driver, v['車番']].filter(Boolean).join(' ');
-}
-
-/** スポットの列に出す車輌の名前：「車番（運送会社の略称）」 */
-function spotVehicleLabel(masters, vehicleId) {
-  const v = find(masters?.車輌, '車輌ID', vehicleId);
-  if (!v) return vehicleId || '';
-  const c = find(masters?.運送会社, '運送会社ID', v['運送会社ID']);
-  const cname = c ? c['略称'] || c['運送会社名'] : '';
-  const driver = v['通常ドライバー担当者ID'] ? familyName(tantoushaName(masters, v['通常ドライバー担当者ID'])) : '';
-  return `${[driver, v['車番']].filter(Boolean).join(' ')}${cname ? `（${cname}）` : ''}`;
 }
 
 /** 池場名：「玉山」、元の池があれば「玉山（大沢）」 */
@@ -86,7 +75,7 @@ export function carrierGroups(cols) {
 
 /**
  * 便（getSchedules の結果）から、運行ごとのセルを作る
- * 戻り値：[{ runId, date, vehicleId, runNo, top, middle, bottom, stopped, spotLabel }]
+ * 戻り値：[{ runId, date, vehicleId, runNo, top, middle, bottom, stopped, extraKey, extraHeader }]
  */
 export function buildRuns(masters, schedules) {
   const byRun = new Map();
@@ -117,7 +106,8 @@ export function buildRuns(masters, schedules) {
         if (!last.names.includes(name)) last.names.push(name);
       } else parts.push({ loc, names: [name] });
     });
-    const middle = parts.map((x) => `${x.loc ? `${x.loc}：` : ''}${x.names.join('→')}`).join('／');
+    // 浜のあとで改行し、生産者名が途中で折り返さないようにする（★11/25）
+    const middle = parts.map((x) => `${x.loc ? `${x.loc}\n` : ''}${x.names.join('→')}`).join('\n');
     const kg = active.reduce((sum, s) => sum + num(s['予定数量kg']), 0);
     runs.push({
       runId,
@@ -129,7 +119,9 @@ export function buildRuns(masters, schedules) {
       bottom: active.length === 0 ? '中止' : tonText(kg),
       stopped: active.length === 0,
       planIds: Array.from(new Set(sorted.map((s) => s['搬入予定ID']))),
-      spotLabel: spotVehicleLabel(masters, first['車輌ID']) + ((num(first['回目']) || 1) > 1 ? `・${first['回目']}回目` : ''),
+      extraKey: `${first['車輌ID']}|${num(first['回目']) || 1}`,
+      extraHeader: vehicleHeader(masters, first['車輌ID']) + ((num(first['回目']) || 1) > 1 ? `（${first['回目']}回目）` : ''),
+      extraCarrierId: (find(masters?.車輌, '車輌ID', first['車輌ID']) || {})['運送会社ID'] || '',
     });
   });
   return runs;
@@ -149,30 +141,35 @@ export function dateList(from, to) {
 
 /**
  * 1ブロック（数日分）の表を作る
- * 戻り値：{ dates, fixed, spotCount, cell(date, colIndex) → run|null, spot(date, i) → run|null }
+ * ・列は、配車表の列順が入っている車輌（固定の列）。そのあとに、列順が空欄の車輌や2回目の運行があれば列を足す
+ * 戻り値：{ dates, cols: [{key, carrierId, carrier, header, extra}], cell(date, colIndex) → run|null }
  */
-export function buildBlock(masters, runs, dates) {
-  const fixed = fixedColumns(masters);
-  const fixedIndex = new Map(fixed.map((c, i) => [c.vehicleId, i]));
-  const fixedCells = new Map(); // `${date}|${col}` → run
-  const spots = new Map(); // date → [run]
-  dates.forEach((d) => spots.set(d, []));
-  runs
-    .filter((r) => spots.has(r.date))
-    .sort((a, b) => a.runNo - b.runNo || String(a.vehicleId).localeCompare(String(b.vehicleId)))
-    .forEach((r) => {
-      const col = fixedIndex.get(r.vehicleId);
-      const key = `${r.date}|${col}`;
-      if (col !== undefined && r.runNo === 1 && !fixedCells.has(key)) fixedCells.set(key, r);
-      else spots.get(r.date).push(r);
+export function buildBlock(masters, runs, dates, extraKeys = null) {
+  const fixed = fixedColumns(masters).map((c) => ({ ...c, key: `${c.vehicleId}|1`, extra: false }));
+  const inDates = runs.filter((r) => dates.includes(r.date));
+  const cells = new Map(); // `${date}|${colKey}` → run
+  const extras = new Map(); // colKey → 列
+  inDates.forEach((r) => {
+    const fixedKey = r.runNo === 1 && fixed.some((c) => c.vehicleId === r.vehicleId) ? `${r.vehicleId}|1` : null;
+    const key = fixedKey || r.extraKey;
+    if (!fixedKey && !extras.has(key)) {
+      extras.set(key, { key, vehicleId: r.vehicleId, carrierId: r.extraCarrierId, carrier: carrierLabel(masters, r.extraCarrierId), header: r.extraHeader, extra: true });
+    }
+    if (!cells.has(`${r.date}|${key}`)) cells.set(`${r.date}|${key}`, r);
+  });
+  // Excelでは、期間全体で足した列をどの週にも出す（列をそろえる）
+  if (extraKeys) {
+    extraKeys.forEach((col) => {
+      if (!extras.has(col.key)) extras.set(col.key, col);
     });
-  const spotCount = Math.max(MIN_SPOT_COLS, ...Array.from(spots.values()).map((l) => l.length));
+  }
+  const extraCols = Array.from(extras.values()).sort((a, b) => String(a.key).localeCompare(String(b.key)));
+  const cols = [...fixed, ...extraCols];
   return {
     dates,
-    fixed,
-    spotCount,
-    cell: (date, col) => fixedCells.get(`${date}|${col}`) || null,
-    spot: (date, i) => spots.get(date)?.[i] || null,
+    cols,
+    extraCols,
+    cell: (date, i) => cells.get(`${date}|${cols[i]?.key}`) || null,
   };
 }
 

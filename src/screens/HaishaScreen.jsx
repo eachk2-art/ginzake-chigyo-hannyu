@@ -11,7 +11,7 @@ import { smallBtnStyle } from '../components/FormParts';
 
 /**
  * 配車表（★2026-11-25）：担当者のExcel「予定表」と同じ並びで、1週間分を表示する。Excelにも出力できる
- * ・列：車輌マスタの「配車表の列順」が入っている車輌（左から列順）＋スポットの列（列順が空欄の車輌・2回目の運行）
+ * ・列：車輌マスタの「配車表の列順」の順。列順が空欄の車輌が走ったとき・2回目の運行があるときだけ、右端に列を足す
  * ・1日3段：上＝積込順＋池場、中＝浜（所在地）：生産者、下＝数量ｔ
  * ・セルを押すと、その車輌の積込・計量の画面を開く
  */
@@ -76,8 +76,8 @@ export default function HaishaScreen({ nav }) {
     }
   }
 
-  const fixed = block?.fixed || [];
-  const spotCount = block?.spotCount || 2;
+  const cols = block?.cols || [];
+  const noOrder = masters && !(masters.車輌 || []).some((v) => String(v['配車表の列順'] ?? '') !== '');
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '14px 12px 40px' }}>
@@ -96,9 +96,14 @@ export default function HaishaScreen({ nav }) {
         </button>
       </div>
 
-      {fixed.length === 0 && masters && (
+      {noOrder && (
         <div style={{ fontSize: 14, color: 'var(--c-warn)', marginBottom: 10, lineHeight: 1.6 }}>
-          車輌マスタに「配車表の列順」が入っている車輌がありません。マスタ管理 → 車輌で、固定の列にする車輌に 1, 2, 3… を入れてください（空欄の車輌はスポットの列に出ます）。
+          車輌マスタに「配車表の列順」が入っている車輌がありません。マスタ管理 → 車輌で、左から並べたい順に 1, 2, 3… を入れてください。
+        </div>
+      )}
+      {block && block.extraCols.length > 0 && (
+        <div style={{ fontSize: 13, color: 'var(--c-warn)', marginBottom: 8 }}>
+          右端の「＊」の列は、配車表の列順が空欄の車輌か、同じ日の2回目の運行です。
         </div>
       )}
 
@@ -113,24 +118,17 @@ export default function HaishaScreen({ nav }) {
                 <th rowSpan={2} style={{ ...thStyle, position: 'sticky', left: 0, zIndex: 2 }}>
                   日付
                 </th>
-                {carrierGroups(fixed).map((g) => (
+                {carrierGroups(cols).map((g) => (
                   <th key={`${g.key}-${g.from}`} colSpan={g.span} style={thStyle}>
                     {g.label}
                   </th>
                 ))}
-                <th colSpan={spotCount} style={{ ...thStyle, background: '#3a2e12' }}>
-                  スポット
-                </th>
               </tr>
               <tr>
-                {fixed.map((c) => (
-                  <th key={c.vehicleId} style={thStyle}>
+                {cols.map((c) => (
+                  <th key={c.key} style={{ ...thStyle, background: c.extra ? '#3a2e12' : thStyle.background }}>
+                    {c.extra ? '＊' : ''}
                     {c.header}
-                  </th>
-                ))}
-                {Array.from({ length: spotCount }, (_, i) => (
-                  <th key={`s${i}`} style={{ ...thStyle, background: '#3a2e12' }}>
-                    スポット{i + 1}
                   </th>
                 ))}
               </tr>
@@ -139,11 +137,8 @@ export default function HaishaScreen({ nav }) {
               {block.dates.map((d) => (
                 <tr key={d}>
                   <td style={{ ...dateTdStyle, position: 'sticky', left: 0, zIndex: 1 }}>{formatSlashJP(d)}</td>
-                  {fixed.map((c, i) => (
-                    <RunCell key={c.vehicleId} run={block.cell(d, i)} onOpen={nav.openRun} />
-                  ))}
-                  {Array.from({ length: spotCount }, (_, i) => (
-                    <RunCell key={`s${i}`} run={block.spot(d, i)} onOpen={nav.openRun} spot />
+                  {cols.map((c, i) => (
+                    <RunCell key={c.key} run={block.cell(d, i)} onOpen={nav.openRun} />
                   ))}
                 </tr>
               ))}
@@ -172,21 +167,20 @@ export default function HaishaScreen({ nav }) {
   );
 }
 
-function RunCell({ run, onOpen, spot }) {
+function RunCell({ run, onOpen }) {
   const base = {
     border: '1px solid var(--c-border-2)',
     padding: '4px 6px',
     minWidth: 104,
     textAlign: 'center',
     verticalAlign: 'top',
-    background: spot ? 'rgba(255, 209, 102, 0.06)' : 'transparent',
+    background: 'transparent',
   };
   if (!run) return <td style={base} />;
   return (
     <td style={{ ...base, cursor: 'pointer' }} onClick={() => onOpen(run.runId)}>
-      {spot && <div style={{ fontSize: 12, color: 'var(--c-warn)', marginBottom: 2 }}>{run.spotLabel}</div>}
       <div style={{ fontWeight: 600 }}>{run.top}</div>
-      <div style={{ color: 'var(--c-text-2)', margin: '2px 0' }}>{run.middle}</div>
+      <div style={{ color: 'var(--c-text-2)', margin: '2px 0', whiteSpace: 'pre-line' }}>{run.middle}</div>
       <div style={{ fontWeight: 700, fontSize: 15, color: run.stopped ? '#b39ddb' : 'var(--c-accent)' }}>{run.bottom}</div>
     </td>
   );

@@ -179,6 +179,13 @@ export const reopenFares = (auth, closingId) => callAction('reopenFares', { clos
 export const exportFares = (auth, dateFrom, dateTo, qtyMode, carrierId, scope, format) =>
   callAction('exportFares', { dateFrom, dateTo, qtyMode, carrierId, scope, format }, auth);
 
+// ---- 浜池別搬入予定（★2026-11-25、太協・管理者） ----
+/** dateFrom・dateTo は、実際の予定（搬入予定）の合計を集める積込日の範囲（シーズンの期間） */
+export const getSeasonPlan = (auth, season, dateFrom, dateTo) =>
+  callAction('getSeasonPlan', { season, dateFrom, dateTo }, auth);
+/** rows：[{海面業者ID（空＝池場の出荷予定）, 池場ID, 由来池場ID, 予定数量kg}]（シーズンの表の最終形） */
+export const saveSeasonPlan = (auth, season, rows) => callAction('saveSeasonPlan', { season, rows }, auth);
+
 // ---- 集計ダッシュボード（SCR-130、太協・管理者）★2026-11-06 ----
 export const getDashboard = (auth, params) => callAction('getDashboard', params || {}, auth);
 

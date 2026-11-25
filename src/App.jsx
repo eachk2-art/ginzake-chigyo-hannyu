@@ -19,6 +19,7 @@ import MasterAdminScreen from './screens/MasterAdminScreen';
 import FareScreen from './screens/FareScreen';
 import FleetCheckScreen from './screens/FleetCheckScreen';
 import HaishaScreen from './screens/HaishaScreen';
+import SeasonPlanScreen from './screens/SeasonPlanScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import EntryQrScreen from './screens/EntryQrScreen';
 import LocationsScreen from './screens/LocationsScreen';
@@ -133,6 +134,7 @@ function MainShell() {
         <FleetCheckScreen onEditSchedule={(sch) => sch['搬入予定ID'] && nav.openPlan(sch['搬入予定ID'])} />
       )}
       {s === 'haisha' && taikyo && <HaishaScreen nav={nav} />}
+      {s === 'seasonPlan' && taikyo && <SeasonPlanScreen />}
       {s === 'contacts' && (taikyo || auth.role === '運送会社') && <ContactsScreen />}
       {s === 'locations' && (taikyo || auth.role === '運送会社') && <LocationsScreen />}
 
