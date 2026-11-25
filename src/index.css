@@ -83,6 +83,12 @@ textarea {
     background: var(--c-bg-2);
     border-bottom: 1px solid var(--c-border);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    /* ★2026-11-26：項目が多いと画面の下で切れるので、メニューの中だけスクロールさせる。
+       body に zoom: 1.2 がかかっているため、高さは 100vh ではなく少なめにしておく */
+    max-height: 70vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .nav-links.nav-links-open {
     display: flex;
