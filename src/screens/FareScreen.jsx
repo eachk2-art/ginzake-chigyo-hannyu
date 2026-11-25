@@ -41,7 +41,7 @@ export default function FareScreen() {
   const [periodMode, setPeriodMode] = useState('month'); // month / season
   const [ym, setYm] = useState(currentYm);
   const [seasonId, setSeasonId] = useState('');
-  const [qtyMode, setQtyMode] = useState('actual_or_plan'); // actual_or_plan / actual
+  const [qtyMode, setQtyMode] = useState('plan'); // ★2026-11-25 plan（予定数量・標準）/ actual_or_plan / actual
   const [carrierId, setCarrierId] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -242,11 +242,15 @@ export default function FareScreen() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 13, color: 'var(--c-text-3)' }}>数量</span>
           <div style={{ display: 'flex', gap: 6 }}>
-            <Toggle active={qtyMode === 'actual'} onClick={() => setQtyMode('actual')}>
-              実績のみ
+            {/* ★2026-11-25：運賃は予定数量で計算するのが標準。実績（入れ目を除いた計量）は確認用 */}
+            <Toggle active={qtyMode === 'plan'} onClick={() => setQtyMode('plan')}>
+              予定数量
             </Toggle>
             <Toggle active={qtyMode === 'actual_or_plan'} onClick={() => setQtyMode('actual_or_plan')}>
               実績＋予定
+            </Toggle>
+            <Toggle active={qtyMode === 'actual'} onClick={() => setQtyMode('actual')}>
+              実績のみ
             </Toggle>
           </div>
         </div>
