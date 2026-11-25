@@ -8,6 +8,7 @@ const ITEMS = [
 ];
 const TAIKYO_ITEMS = [
   { key: 'fleetCheck', label: '配車チェック' },
+  { key: 'haisha', label: '配車表' }, // ★2026-11-25
   { key: 'kaimenPicker', label: '予定表' },
   { key: 'fares', label: '運賃' },
   { key: 'dashboard', label: '集計' },
