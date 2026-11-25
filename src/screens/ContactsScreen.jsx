@@ -8,7 +8,7 @@ export default function ContactsScreen() {
   const { auth } = useAuth();
   const { masters } = useMasters();
   const [openGroup, setOpenGroup] = useState(null); // "カテゴリ|ID" の形。一度に1つだけ開く
-  const canSeeAll = isTaikyo(auth.role); // 内水面業者・海面業者、運送業者の運行管理者・社長は太協のみ
+  const canSeeAll = isTaikyo(auth.role); // 内水面業者・海面業者、運送業者の社長・運行管理者は太協のみ
   const canSeeCarrierDrivers = isTaikyo(auth.role) || auth.role === '運送会社'; // 運送業者のドライバー欄は運送会社も可
 
   if (!masters) return <LoadingMsg>読み込んでいます…</LoadingMsg>;
@@ -31,7 +31,9 @@ export default function ContactsScreen() {
     const office = (masters.担当者 || []).filter(
       (t) => t['区分'] === '運送会社担当者' && t['所属先ID'] === cid && !driverIds.has(t['担当者ID'])
     );
-    return { id: cid, name: c['運送会社名'], drivers, office };
+    // ★2026-11-25：社長は担当者マスタの区分「運送会社社長」で登録する（運行管理者と分けて出す）
+    const presidents = (masters.担当者 || []).filter((t) => t['区分'] === '運送会社社長' && t['所属先ID'] === cid);
+    return { id: cid, name: c['運送会社名'], drivers, office, presidents };
   });
 
   const suisanList = (masters.内水面業者 || []).map((u) => ({
@@ -71,9 +73,17 @@ export default function ContactsScreen() {
             name: c.name,
             render: (
               <>
+                {canSeeAll && c.presidents.length > 0 && (
+                  <>
+                    <div style={subHeadStyle}>社長</div>
+                    {c.presidents.map((t) => (
+                      <ContactRow key={t['担当者ID']} name={t['氏名']} contact={t['連絡先']} />
+                    ))}
+                  </>
+                )}
                 {canSeeAll && c.office.length > 0 && (
                   <>
-                    <div style={subHeadStyle}>運行管理者・社長</div>
+                    <div style={subHeadStyle}>運行管理者</div>
                     {c.office.map((t) => (
                       <ContactRow key={t['担当者ID']} name={t['氏名']} contact={t['連絡先']} />
                     ))}
@@ -87,7 +97,7 @@ export default function ContactsScreen() {
                     ))}
                   </>
                 )}
-                {(canSeeAll ? c.office.length === 0 && c.drivers.length === 0 : c.drivers.length === 0) && (
+                {(canSeeAll ? c.office.length === 0 && c.presidents.length === 0 && c.drivers.length === 0 : c.drivers.length === 0) && (
                   <EmptyNote />
                 )}
               </>
