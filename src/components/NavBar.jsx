@@ -8,6 +8,7 @@ const ITEMS = [
 ];
 const TAIKYO_ITEMS = [
   { key: 'fleetCheck', label: '配車チェック' },
+  { key: 'zentai', label: '全体予定' }, // ★2026-11-25 生産者別（車輌が決まる前）
   { key: 'haisha', label: '配車表' }, // ★2026-11-25
   { key: 'seasonPlan', label: '浜池別予定' }, // ★2026-11-25
   { key: 'kaimenPicker', label: '予定表' },

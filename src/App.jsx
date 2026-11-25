@@ -20,6 +20,7 @@ import FareScreen from './screens/FareScreen';
 import FleetCheckScreen from './screens/FleetCheckScreen';
 import HaishaScreen from './screens/HaishaScreen';
 import SeasonPlanScreen from './screens/SeasonPlanScreen';
+import ZentaiScreen from './screens/ZentaiScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import EntryQrScreen from './screens/EntryQrScreen';
 import LocationsScreen from './screens/LocationsScreen';
@@ -135,6 +136,7 @@ function MainShell() {
       )}
       {s === 'haisha' && taikyo && <HaishaScreen nav={nav} />}
       {s === 'seasonPlan' && taikyo && <SeasonPlanScreen />}
+      {s === 'zentai' && taikyo && <ZentaiScreen nav={nav} />}
       {s === 'contacts' && (taikyo || auth.role === '運送会社') && <ContactsScreen />}
       {s === 'locations' && (taikyo || auth.role === '運送会社') && <LocationsScreen />}
 
