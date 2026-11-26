@@ -78,6 +78,7 @@ export default function TravelScreen() {
   }, [samples, masters, taikyo]);
 
   const splitCount = (samples || []).filter((x) => x['積み分け']).length;
+  // ドライバー別は、便の代表の車輌のドライバーで数える
   const driverOf = (vehicleId) => {
     const v = (masters?.車輌 || []).find((x) => x['車輌ID'] === vehicleId);
     return v?.['通常ドライバー担当者ID'] ? tantoushaName(masters, v['通常ドライバー担当者ID']) : vehicleLabel(masters, vehicleId);
@@ -108,7 +109,7 @@ export default function TravelScreen() {
         ))}
       </div>
       <div style={{ fontSize: 13, color: 'var(--c-text-3)', margin: '0 4px 12px', lineHeight: 1.6 }}>
-        池場を出てから浜に着くまでの時間です（出発時刻〜浜到着時刻が入っている便から）。目安は真ん中の値（中央値）、ふだんの幅は真ん中の半分が入る範囲です。
+        池場を出てから浜に着くまでの時間です（出発時刻〜浜到着時刻が入っている便から）。何台かで一緒に走った便は、代表の車輌の時刻で1件と数えます。目安は真ん中の値（中央値）、ふだんの幅は真ん中の半分が入る範囲です。
         {FEW}件より少ないものは参考です。
         {taikyo && splitCount > 0 && `積み分けの車（${splitCount}件）は寄り道込みになるので、目安には入れていません。`}
       </div>
@@ -164,7 +165,7 @@ export default function TravelScreen() {
                   <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr>
-                        {['日付', '出発', ...(taikyo ? ['中間地点'] : []), '浜到着', '所要', '天候', ...(taikyo ? ['車輌', '生産者'] : [])].map((h) => (
+                        {['日付', '出発', ...(taikyo ? ['中間地点'] : []), '浜到着', '所要', '天候', '台数', ...(taikyo ? ['代表の車輌', '生産者'] : [])].map((h) => (
                           <th key={h} style={th}>
                             {h}
                           </th>
@@ -187,10 +188,12 @@ export default function TravelScreen() {
                           <td style={td}>{x['浜到着']}</td>
                           <td style={{ ...td, fontWeight: 700 }}>{hmShort(x['所要分'])}</td>
                           <td style={td}>{x['天候']}</td>
+                          <td style={td}>{x['台数'] ? `${x['台数']}台` : ''}</td>
                           {taikyo && (
                             <>
                               <td style={td}>
                                 {vehicleLabel(masters, x['車輌ID'])}（{carrierNameByVehicle(masters, x['車輌ID'])}）
+                                {(x['車輌一覧'] || []).length > 1 && <span style={{ color: 'var(--c-text-3)' }}>　ほか{x['車輌一覧'].length - 1}台</span>}
                               </td>
                               <td style={td}>{kaimenPersonName(masters, x['海面業者ID'])}</td>
                             </>
