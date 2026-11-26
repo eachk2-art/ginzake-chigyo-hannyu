@@ -22,6 +22,7 @@ import HaishaScreen from './screens/HaishaScreen';
 import SeasonPlanScreen from './screens/SeasonPlanScreen';
 import ZentaiScreen from './screens/ZentaiScreen';
 import RecordsScreen from './screens/RecordsScreen';
+import TravelScreen from './screens/TravelScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import EntryQrScreen from './screens/EntryQrScreen';
 import LocationsScreen from './screens/LocationsScreen';
@@ -141,6 +142,7 @@ function MainShell() {
       {s === 'records' && taikyo && <RecordsScreen nav={nav} />}
       {s === 'contacts' && (taikyo || auth.role === '運送会社') && <ContactsScreen />}
       {s === 'locations' && (taikyo || auth.role === '運送会社') && <LocationsScreen />}
+      {s === 'travel' && (taikyo || auth.role === '運送会社') && <TravelScreen />}
 
       {s === 'kaimenPicker' && taikyo && (
         <KaimenPickerScreen

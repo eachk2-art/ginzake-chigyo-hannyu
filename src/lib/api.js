@@ -189,6 +189,9 @@ export const saveSeasonPlan = (auth, season, rows) => callAction('saveSeasonPlan
 // ---- 積込・搬入の全記録（★2026-11-26、太協・管理者。運賃は管理者だけ） ----
 export const getRecords = (auth, dateFrom, dateTo) => callAction('getRecords', { dateFrom, dateTo }, auth);
 
+// ---- 運行時間の目安（★2026-11-26、太協・管理者・運送会社。運送会社には池場→浜の時間だけが返る） ----
+export const getTravelTimes = (auth, dateFrom, dateTo) => callAction('getTravelTimes', { dateFrom, dateTo }, auth);
+
 // ---- 集計ダッシュボード（SCR-130、太協・管理者）★2026-11-06 ----
 export const getDashboard = (auth, params) => callAction('getDashboard', params || {}, auth);
 

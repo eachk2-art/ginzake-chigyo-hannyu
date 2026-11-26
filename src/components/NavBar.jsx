@@ -23,12 +23,13 @@ const ADMIN_ONLY_ITEMS = [
 ];
 const CONTACTS_ITEM = { key: 'contacts', label: '連絡先' };
 const LOCATIONS_ITEM = { key: 'locations', label: '池場・搬入先' };
+const TRAVEL_ITEM = { key: 'travel', label: '運行時間' }; // ★2026-11-26 運行時間の目安
 
 export default function NavBar({ screen, onChange }) {
   const { auth, logout } = useAuth();
   const [open, setOpen] = useState(false);
   let items = ITEMS;
-  if (isTaikyo(auth.role) || auth.role === '運送会社') items = [...items, CONTACTS_ITEM, LOCATIONS_ITEM];
+  if (isTaikyo(auth.role) || auth.role === '運送会社') items = [...items, CONTACTS_ITEM, LOCATIONS_ITEM, TRAVEL_ITEM];
   if (isTaikyo(auth.role)) items = [...items, ...TAIKYO_ITEMS];
   if (isAdmin(auth.role)) items = [...items, ...ADMIN_ONLY_ITEMS];
 
