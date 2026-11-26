@@ -4,7 +4,8 @@ import BusyButton from '../BusyButton';
 import TimeField from '../TimeField';
 import { Field, Section, ChoiceRow, YesNoField, WitnessSelect, inputStyle } from '../FormParts';
 import { savePlanDelivery } from '../../lib/api';
-import { fishSummary, kgText, witnessOptions } from '../../lib/planUtils';
+import { fishSummary, kgText, witnessOptions, representativeId, waypointOptions, waypointLabel } from '../../lib/planUtils';
+import { vehicleWithCarrier } from '../../lib/masterLookup';
 
 const CONDITION_OPTIONS = ['良好', '要観察', '不良'];
 const ISSUE_FIELDS = [
@@ -17,6 +18,14 @@ function initialForm(plan) {
   return {
     搬入日: plan['搬入日'] || plan['積込日'] || '',
     出発時刻: plan['出発時刻'] || '',
+    // ★2026-11-27 中間地点①〜③と代表の車輌（空＝積込順の一番早い車輌）
+    中間地点1ID: plan['中間地点1ID'] || '',
+    中間地点1時刻: plan['中間地点1時刻'] || '',
+    中間地点2ID: plan['中間地点2ID'] || '',
+    中間地点2時刻: plan['中間地点2時刻'] || '',
+    中間地点3ID: plan['中間地点3ID'] || '',
+    中間地点3時刻: plan['中間地点3時刻'] || '',
+    代表積込予定ID: plan['代表積込予定ID'] || '',
     浜到着時刻: plan['浜到着時刻'] || '',
     作業開始時刻: plan['作業開始時刻'] || '',
     作業終了時刻: plan['作業終了時刻'] || '',
@@ -46,6 +55,7 @@ export default function PlanDeliveryForm({ auth, masters, plan, runs, disabledRe
   const [form, setForm] = useState(() => initialForm(plan));
   const [savedSnap, setSavedSnap] = useState(() => JSON.stringify(initialForm(plan)));
   const [error, setError] = useState('');
+  const [midOpen, setMidOpen] = useState(false); // ★2026-11-27 中間地点は、ボタンで開く
   const witnesses = witnessOptions(masters);
   const disabled = !!disabledReason;
   const isSaved = savedSnap === JSON.stringify(form);
@@ -70,8 +80,38 @@ export default function PlanDeliveryForm({ auth, masters, plan, runs, disabledRe
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // 時刻の順番の確認（出発 → 中間地点①②③ → 浜到着 → 作業開始 → 作業終了）
+  const toMin = (t) => {
+    const m = String(t || '').match(/^(\d{1,2}):(\d{2})/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const seq = [
+    ['出発', form.出発時刻],
+    ['中間地点①', form.中間地点1時刻],
+    ['中間地点②', form.中間地点2時刻],
+    ['中間地点③', form.中間地点3時刻],
+    ['浜到着', form.浜到着時刻],
+    ['作業開始', form.作業開始時刻],
+    ['作業終了', form.作業終了時刻],
+  ].filter(([, t]) => toMin(t) !== null);
+  let orderWarn = '';
+  for (let i = 1; i < seq.length; i++) {
+    if (toMin(seq[i][1]) < toMin(seq[i - 1][1])) {
+      orderWarn = `${seq[i - 1][0]}（${seq[i - 1][1]}）より${seq[i][0]}（${seq[i][1]}）が早くなっています。確かめてください`;
+      break;
+    }
+  }
+  const allocs = plan['割当'] || [];
+  const autoRep = representativeId({ ...plan, 代表積込予定ID: '' });
+
   async function save() {
     setError('');
+    const noPoint = [1, 2, 3].find((n) => form[`中間地点${n}時刻`] && !form[`中間地点${n}ID`]);
+    if (noPoint) {
+      setError(`中間地点${'①②③'[noPoint - 1]}の地点・内容を選んでください（時刻だけ入っています）`);
+      setMidOpen(true);
+      return;
+    }
     if (!form.搬入日) {
       setError('搬入日を入力してください');
       return;
@@ -111,7 +151,69 @@ export default function PlanDeliveryForm({ auth, masters, plan, runs, disabledRe
       <Field label="搬入日">
         <input type="date" value={form.搬入日} disabled={disabled} onChange={(e) => set('搬入日', e.target.value)} style={inputStyle} />
       </Field>
+      {/* ★2026-11-27：時刻は代表の車輌に聞いて、この納品先に1回入れる（全部の車輌に効く。ずれた車だけ「車ごとの入力」で直す） */}
+      {allocs.length > 1 && (
+        <Field label="代表の車輌（時刻を聞く車）">
+          <select value={form.代表積込予定ID} disabled={disabled} onChange={(e) => set('代表積込予定ID', e.target.value)} style={inputStyle}>
+            <option value="">積込順の一番早い車（{vehicleWithCarrier(masters, allocs.find((a) => a['積込予定ID'] === autoRep)?.['車輌ID'])}）</option>
+            {allocs.map((a) => (
+              <option key={a['積込予定ID']} value={a['積込予定ID']}>
+                {vehicleWithCarrier(masters, a['車輌ID'])}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       <TimeField label="出発時刻（池場を出た時刻）" value={form.出発時刻} disabled={disabled} onChange={(v) => set('出発時刻', v)} />
+      {/* ★2026-11-27 中間地点①〜③：最初は閉じておき、ボタンで開く。閉じているときは入力済みの分だけ1行で出す */}
+      <div style={{ marginBottom: 16 }}>
+        <button
+          type="button"
+          onClick={() => setMidOpen((v) => !v)}
+          style={{
+            minHeight: 42,
+            padding: '8px 14px',
+            borderRadius: 8,
+            border: '1px solid var(--c-accent)',
+            background: midOpen ? 'var(--c-bg-3)' : 'transparent',
+            color: 'var(--c-accent)',
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          中間地点 {midOpen ? '▲' : '▼'}
+        </button>
+        {!midOpen && (
+          <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginTop: 6 }}>
+            {[1, 2, 3]
+              .filter((n) => form[`中間地点${n}ID`] || form[`中間地点${n}時刻`])
+              .map((n) => `${'①②③'[n - 1]} ${waypointLabel(masters, form[`中間地点${n}ID`]) || '地点未選択'} ${form[`中間地点${n}時刻`] || '--:--'}`)
+              .join('　') || '（入力なし）'}
+          </div>
+        )}
+        {midOpen &&
+          [1, 2, 3].map((n) => {
+            const opts = waypointOptions(masters, n);
+            const idKey = `中間地点${n}ID`;
+            const tKey = `中間地点${n}時刻`;
+            return (
+              <div key={n} style={{ border: '1px dashed var(--c-border-2)', borderRadius: 10, padding: '10px 10px 0', marginTop: 10 }}>
+                <Field label={`中間地点${'①②③'[n - 1]}　地点・内容`} style={{ marginBottom: 8 }}>
+                  <select value={form[idKey]} disabled={disabled} onChange={(e) => set(idKey, e.target.value)} style={inputStyle}>
+                    <option value="">（なし）</option>
+                    {opts.map((w) => (
+                      <option key={w['中間地点ID']} value={w['中間地点ID']}>
+                        {w['地点・内容']}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <TimeField label="時刻（4桁の数字で入力。例：0750）" value={form[tKey]} disabled={disabled} onChange={(v) => set(tKey, v)} />
+              </div>
+            );
+          })}
+      </div>
       <YesNoField label="到着確認" value={form.到着確認} disabled={disabled} onChange={(v) => set('到着確認', v)} />
       <TimeField label="浜到着時刻" value={form.浜到着時刻} disabled={disabled} onChange={(v) => set('浜到着時刻', v)} />
       <TimeField label="作業開始時刻" value={form.作業開始時刻} disabled={disabled} onChange={(v) => set('作業開始時刻', v)} />
@@ -183,6 +285,7 @@ export default function PlanDeliveryForm({ auth, masters, plan, runs, disabledRe
         </div>
       </div>
 
+      {orderWarn && <div style={{ fontSize: 14, color: 'var(--c-warn)', marginBottom: 10 }}>⚠ {orderWarn}</div>}
       <ErrorMsg message={error} />
       {!disabled && (
         <div style={{ marginBottom: 10 }}>

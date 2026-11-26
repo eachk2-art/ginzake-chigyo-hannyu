@@ -14,7 +14,7 @@ import {
 } from '../../lib/api';
 import { vehicleWithCarrier, kaimenPersonName, deliveryDestName } from '../../lib/masterLookup';
 import { isAdmin, isTaikyo } from '../../lib/roles';
-import { num, kgText, isInactiveStatus } from '../../lib/planUtils';
+import { num, kgText, isInactiveStatus, representativeId, waypointLabel } from '../../lib/planUtils';
 
 /**
  * 親にぶら下がる車輌（割当）の一覧と操作（★2026-11-24 親子方式）
@@ -171,6 +171,8 @@ function AllocationCard({ auth, masters, plan, alloc, run, locked, planInactive,
             <span style={{ fontSize: 16, fontWeight: 700 }}>
               {vehicleWithCarrier(masters, alloc['車輌ID'])}
               {num(alloc['回目']) > 1 && <span style={{ marginLeft: 6, fontSize: 13, color: 'var(--c-warn)' }}>{alloc['回目']}回目</span>}
+              {/* ★2026-11-27 代表の車輌（時刻を聞く車）。現場の入力で選び直せる */}
+              {(plan['割当'] || []).length > 1 && representativeId(plan) === alloc['積込予定ID'] && <span style={repBadge}>代表</span>}
             </span>
             <StatusBadge status={st} />
           </div>
@@ -187,11 +189,14 @@ function AllocationCard({ auth, masters, plan, alloc, run, locked, planInactive,
               </div>
             )}
             {alloc['車輌水温'] !== '' && alloc['車輌水温'] != null && <div>車輌の水温：{alloc['車輌水温']}℃</div>}
-            {['出発時刻上書き', '浜到着時刻上書き', '作業開始時刻上書き', '作業終了時刻上書き'].some((k) => alloc[k]) && (
+            {['出発時刻上書き', '中間地点1時刻上書き', '中間地点2時刻上書き', '中間地点3時刻上書き', '浜到着時刻上書き', '作業開始時刻上書き', '作業終了時刻上書き'].some((k) => alloc[k]) && (
               <div>
                 この車だけの時刻：
                 {[
                   ['出発', '出発時刻上書き'],
+                  ['中間①', '中間地点1時刻上書き'],
+                  ['中間②', '中間地点2時刻上書き'],
+                  ['中間③', '中間地点3時刻上書き'],
                   ['浜到着', '浜到着時刻上書き'],
                   ['作業開始', '作業開始時刻上書き'],
                   ['作業終了', '作業終了時刻上書き'],
@@ -249,6 +254,7 @@ function AllocationCard({ auth, masters, plan, alloc, run, locked, planInactive,
       {panel === 'car' && (
         <CarInputPanel
           auth={auth}
+          masters={masters}
           alloc={alloc}
           plan={plan}
           onSaved={async () => {
@@ -284,10 +290,13 @@ function AllocationCard({ auth, masters, plan, alloc, run, locked, planInactive,
 }
 
 /** 車ごとの入力：車輌の水温と、納品先とずれた車だけの時刻 */
-function CarInputPanel({ auth, alloc, plan, onSaved }) {
+function CarInputPanel({ auth, masters, alloc, plan, onSaved }) {
   const [f, setF] = useState({
     車輌水温: alloc['車輌水温'] ?? '',
     出発時刻上書き: alloc['出発時刻上書き'] || '',
+    中間地点1時刻上書き: alloc['中間地点1時刻上書き'] || '',
+    中間地点2時刻上書き: alloc['中間地点2時刻上書き'] || '',
+    中間地点3時刻上書き: alloc['中間地点3時刻上書き'] || '',
     浜到着時刻上書き: alloc['浜到着時刻上書き'] || '',
     作業開始時刻上書き: alloc['作業開始時刻上書き'] || '',
     作業終了時刻上書き: alloc['作業終了時刻上書き'] || '',
@@ -323,6 +332,16 @@ function CarInputPanel({ auth, alloc, plan, onSaved }) {
         時刻は、ほかの車とずれたときだけ入れます。空欄なら納品先の時刻を使います。
       </div>
       <TimeField label={`出発時刻${base('出発時刻')}`} value={f.出発時刻上書き} onChange={(v) => set('出発時刻上書き', v)} />
+      {[1, 2, 3]
+        .filter((n) => plan[`中間地点${n}ID`] || plan[`中間地点${n}時刻`] || f[`中間地点${n}時刻上書き`])
+        .map((n) => (
+          <TimeField
+            key={n}
+            label={`中間地点${'①②③'[n - 1]} ${waypointLabel(masters, plan[`中間地点${n}ID`])}${base(`中間地点${n}時刻`)}`}
+            value={f[`中間地点${n}時刻上書き`]}
+            onChange={(v) => set(`中間地点${n}時刻上書き`, v)}
+          />
+        ))}
       <TimeField label={`浜到着時刻${base('浜到着時刻')}`} value={f.浜到着時刻上書き} onChange={(v) => set('浜到着時刻上書き', v)} />
       <TimeField label={`作業開始時刻${base('作業開始時刻')}`} value={f.作業開始時刻上書き} onChange={(v) => set('作業開始時刻上書き', v)} />
       <TimeField label={`作業終了時刻${base('作業終了時刻')}`} value={f.作業終了時刻上書き} onChange={(v) => set('作業終了時刻上書き', v)} />
@@ -482,4 +501,14 @@ const dashedBtnStyle = {
   background: 'transparent',
   color: 'var(--c-text-2)',
   cursor: 'pointer',
+};
+
+const repBadge = {
+  marginLeft: 6,
+  padding: '1px 8px',
+  borderRadius: 999,
+  border: '1px solid var(--c-accent)',
+  color: 'var(--c-accent)',
+  fontSize: 12,
+  fontWeight: 700,
 };

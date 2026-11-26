@@ -7,8 +7,8 @@ import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 import { ikebaBaseName, pondNameOnly, deliveryDestName, vehicleLabel, carrierNameByVehicle, tantoushaName, kaimenPersonName } from '../lib/masterLookup';
 import { isTaikyo } from '../lib/roles';
 import { useSticky, toggleInSet } from '../lib/sticky';
-import { stats, hm, hmShort, departBand, breakdown, FEW } from '../lib/travel';
-import { ikebaOrderIndex } from '../lib/planUtils';
+import { stats, hm, hmShort, departBand, breakdown, midpointBreakdown, FEW } from '../lib/travel';
+import { ikebaOrderIndex, waypointLabel } from '../lib/planUtils';
 
 /**
  * 運行時間の目安（★2026-11-26 段階1、太協・管理者・運送会社）
@@ -142,6 +142,16 @@ export default function TravelScreen() {
             {isOpen && (
               <div style={{ padding: '0 14px 12px', borderTop: '1px solid var(--c-border)' }}>
                 <Breakdown title="天候別" rows={breakdown(r.list, (x) => x['天候'])} />
+                {taikyo && (() => {
+                  // ★2026-11-27 中間地点（太協・管理者だけ）
+                  const mb = midpointBreakdown(r.list, (id) => waypointLabel(masters, id));
+                  return (
+                    <>
+                      <Breakdown title="中間地点：出発からの時間" rows={mb.fromDepart} />
+                      <Breakdown title="中間地点：そこから浜到着までの時間" rows={mb.toArrive} />
+                    </>
+                  );
+                })()}
                 {taikyo && (
                   <>
                     <Breakdown title="ドライバー別" rows={breakdown(r.list, (x) => driverOf(x['車輌ID']))} />
@@ -154,7 +164,7 @@ export default function TravelScreen() {
                   <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr>
-                        {['日付', '出発', '浜到着', '所要', '天候', ...(taikyo ? ['車輌', '生産者'] : [])].map((h) => (
+                        {['日付', '出発', ...(taikyo ? ['中間地点'] : []), '浜到着', '所要', '天候', ...(taikyo ? ['車輌', '生産者'] : [])].map((h) => (
                           <th key={h} style={th}>
                             {h}
                           </th>
@@ -166,6 +176,14 @@ export default function TravelScreen() {
                         <tr key={i}>
                           <td style={td}>{formatSlashJP(x['積込日'])}</td>
                           <td style={td}>{x['出発']}</td>
+                          {taikyo && (
+                            <td style={{ ...td, textAlign: 'left', fontSize: 12 }}>
+                              {(x['中間地点'] || [])
+                                .filter((m) => m['時刻'])
+                                .map((m) => `${waypointLabel(masters, m['中間地点ID'])} ${m['時刻']}`)
+                                .join('　')}
+                            </td>
+                          )}
                           <td style={td}>{x['浜到着']}</td>
                           <td style={{ ...td, fontWeight: 700 }}>{hmShort(x['所要分'])}</td>
                           <td style={td}>{x['天候']}</td>

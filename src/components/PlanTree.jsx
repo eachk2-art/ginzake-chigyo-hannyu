@@ -11,7 +11,7 @@ import {
   originIkebaName,
 } from '../lib/masterLookup';
 import { isTaikyo, isAdmin } from '../lib/roles';
-import { num, kgText, isInactiveStatus } from '../lib/planUtils';
+import { num, kgText, isInactiveStatus, representativeId } from '../lib/planUtils';
 
 /**
  * 1つの池場のまとまり（★2026-11-24 親子方式）：池場（池場日誌） → 親（海面業者・浜） → 割当（車輌）
@@ -248,6 +248,9 @@ function PlanRow({ plan, idx, count, masters, taikyo, open, onToggle, onOpenPlan
                     {vehicleWithCarrier(masters, a['車輌ID'])}
                     {num(a['回目']) > 1 && (
                       <span style={{ marginLeft: 6, fontSize: 13, color: 'var(--c-warn)' }}>{a['回目']}回目</span>
+                    )}
+                    {taikyo && allocs.length > 1 && representativeId(plan) === a['積込予定ID'] && (
+                      <span style={{ marginLeft: 6, padding: '1px 8px', borderRadius: 999, border: '1px solid var(--c-accent)', color: 'var(--c-accent)', fontSize: 12 }}>代表</span>
                     )}
                   </span>
                   <StatusBadge status={a['ステータス']} />

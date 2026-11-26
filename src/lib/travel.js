@@ -56,4 +56,42 @@ export function breakdown(samples, keyFn) {
     .sort((a, b) => b.s.n - a.s.n);
 }
 
+/** "HH:mm" 2つの差（分）。日をまたいだら24時間足す */
+export function minutesBetween(a, b) {
+  const m = (t) => {
+    const x = String(t || '').match(/^(\d{1,2}):(\d{2})/);
+    return x ? Number(x[1]) * 60 + Number(x[2]) : null;
+  };
+  const x = m(a);
+  const y = m(b);
+  if (x === null || y === null) return null;
+  const d = y - x;
+  return d < 0 ? d + 24 * 60 : d;
+}
+
+/**
+ * 中間地点ごとの時間（★2026-11-27、太協・管理者）
+ * 戻り値：{ fromDepart: [{label, s}], toArrive: [{label, s}] }
+ *   fromDepart … 出発 → その中間地点、toArrive … その中間地点 → 浜到着
+ */
+export function midpointBreakdown(samples, labelOf) {
+  const a = [];
+  const b = [];
+  samples.forEach((x) => {
+    (x['中間地点'] || []).forEach((m) => {
+      if (!m['時刻']) return;
+      const label = `${'①②③'[Number(m['欄']) - 1] || ''} ${labelOf(m['中間地点ID'])}`;
+      const d1 = minutesBetween(x['出発'], m['時刻']);
+      const d2 = minutesBetween(m['時刻'], x['浜到着']);
+      if (d1 !== null && d1 > 0 && d1 < 12 * 60) a.push({ 所要分: d1, label, slot: m['欄'] });
+      if (d2 !== null && d2 >= 0 && d2 < 12 * 60) b.push({ 所要分: d2, label, slot: m['欄'] });
+    });
+  });
+  const sortBySlot = (rows) => rows.sort((p, q) => p.label.localeCompare(q.label, 'ja'));
+  return {
+    fromDepart: sortBySlot(breakdown(a, (x) => x.label)),
+    toArrive: sortBySlot(breakdown(b, (x) => x.label)),
+  };
+}
+
 export const FEW = 3; // これより少ない件数は「参考」として薄く出す

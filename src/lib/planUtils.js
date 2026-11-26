@@ -85,3 +85,26 @@ export function fishSummary(rows, plannedKg) {
 export function weighTarget(plannedKg, iremeRate) {
   return Math.round(num(plannedKg) * (1 + num(iremeRate) / 100));
 }
+
+/**
+ * 代表の車輌（★2026-11-27）：選んであればその車輌、なければ積込順の一番早い車輌（中止の車は除く）
+ * allocs は親の「割当」（積込順に並んでいる）
+ */
+export function representativeId(plan) {
+  const allocs = plan?.['割当'] || [];
+  const chosen = plan?.['代表積込予定ID'];
+  if (chosen && allocs.some((a) => a['積込予定ID'] === chosen)) return chosen;
+  const live = allocs.find((a) => !isInactiveStatus(a['ステータス']));
+  return (live || allocs[0])?.['積込予定ID'] || '';
+}
+
+/** 中間地点マスタの、その欄（1〜3）の選択肢 */
+export function waypointOptions(masters, slot) {
+  return (masters?.中間地点 || []).filter((w) => String(w['欄']) === String(slot));
+}
+
+/** 中間地点の表示名 */
+export function waypointLabel(masters, id) {
+  const w = (masters?.中間地点 || []).find((x) => x['中間地点ID'] === id);
+  return w ? w['地点・内容'] : id || '';
+}
