@@ -58,7 +58,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
   // 印刷の間だけタイトルを差し替える（★2026-09-24）
   function handlePrint() {
     const name = kaimen ? kaimen['氏名'] : kaimenId;
-    printWithTitle(`${fileDateStamp(lastUpdated)}更新_${name}_予定表`);
+    printWithTitle(`${fileDateStamp(lastUpdated)}更新_${name}_浜個別予定`);
   }
 
   const lastUpdated = useMemo(() => {
@@ -111,7 +111,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '20px 16px 60px' }}>
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>予定表</h2>
+        <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>浜個別予定</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={handlePrint} style={btnStyle}>
             印刷する

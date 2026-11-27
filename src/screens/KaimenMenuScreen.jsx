@@ -31,7 +31,7 @@ export default function KaimenMenuScreen({ onSelect }) {
       <h2 style={{ fontSize: 19, fontWeight: 700, marginBottom: 20 }}>稚魚搬入管理</h2>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <MenuButton onClick={() => onSelect('schedule')}>予定表</MenuButton>
+        <MenuButton onClick={() => onSelect('schedule')}>浜個別予定</MenuButton>
         {isYokoura && <MenuButton onClick={() => onSelect('joint')}>横浦地区全体予定表</MenuButton>}
       </div>
     </div>

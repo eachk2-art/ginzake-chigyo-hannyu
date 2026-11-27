@@ -89,7 +89,7 @@ export default function ArrivalScreen() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '14px 12px 40px' }}>
-      <h2 style={{ fontSize: 19, fontWeight: 700, margin: '0 4px 10px' }}>到着の振り返り</h2>
+      <h2 style={{ fontSize: 19, fontWeight: 700, margin: '0 4px 10px' }}>到着の振返り</h2>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         {PERIODS.map((p) => (
           <button key={p.key} onClick={() => setPeriod(p.key)} style={toggleStyle(period === p.key)}>

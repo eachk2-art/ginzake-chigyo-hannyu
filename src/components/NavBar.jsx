@@ -2,39 +2,40 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { isAdmin, isTaikyo } from '../lib/roles';
 
-const ITEMS = [
-  { key: 'home', label: 'ホーム' },
-  { key: 'scheduleList', label: '積込予定一覧' },
+// ★2026-11-28 メニューの並びを整理（この順に表示）。who：all＝全員／taikyo＝太協・管理者／carrier＝太協・管理者・運送会社／admin＝管理者
+const MENU = [
+  { key: 'home', label: 'ホーム', who: 'all' },
+  { key: 'scheduleList', label: '積込予定一覧', who: 'all' },
+  { key: 'kaimenPicker', label: '浜個別予定', who: 'taikyo' }, // 旧名：予定表
+  { key: 'contacts', label: '連絡先', who: 'carrier' },
+  { key: 'locations', label: '池場・搬入先', who: 'carrier' },
+  { key: 'arrivalPlan', label: '到着時刻の検討', who: 'taikyo' }, // ★2026-11-27
+  { key: 'loadingTimes', label: '積込時間', who: 'taikyo' }, // ★2026-11-27 積込時間の傾向
+  { key: 'travel', label: '運行時間', who: 'carrier' }, // ★2026-11-26 運行時間の目安
+  { key: 'fleetCheck', label: '配車チェック', who: 'taikyo' },
+  { key: 'zentai', label: '全体予定', who: 'taikyo' }, // ★2026-11-25 生産者別（車輌が決まる前）
+  { key: 'haisha', label: '配車表', who: 'taikyo' }, // ★2026-11-25
+  { key: 'dashboard', label: '集計', who: 'taikyo' },
+  { key: 'records', label: '記録', who: 'taikyo' }, // ★2026-11-26 積込・搬入の全記録
+  { key: 'fares', label: '運賃', who: 'taikyo' },
+  { key: 'seasonPlan', label: '浜池別予定', who: 'taikyo' }, // ★2026-11-25
+  { key: 'arrival', label: '到着の振返り', who: 'taikyo' }, // ★2026-11-27（旧名：到着の見込み → 到着の振り返り）
+  { key: 'changeLog', label: '変更履歴', who: 'admin' },
+  { key: 'masterAdmin', label: 'マスタ管理', who: 'admin' },
+  { key: 'entryQr', label: '入口QR', who: 'admin' },
 ];
-const TAIKYO_ITEMS = [
-  { key: 'fleetCheck', label: '配車チェック' },
-  { key: 'zentai', label: '全体予定' }, // ★2026-11-25 生産者別（車輌が決まる前）
-  { key: 'haisha', label: '配車表' }, // ★2026-11-25
-  { key: 'seasonPlan', label: '浜池別予定' }, // ★2026-11-25
-  { key: 'kaimenPicker', label: '予定表' },
-  { key: 'fares', label: '運賃' },
-  { key: 'dashboard', label: '集計' },
-  { key: 'records', label: '記録' }, // ★2026-11-26 積込・搬入の全記録
-  { key: 'loadingTimes', label: '積込時間' }, // ★2026-11-27 積込時間の傾向
-  { key: 'arrivalPlan', label: '到着時刻の検討' }, // ★2026-11-27 便・車輌・数量から到着の見込みを出す
-  { key: 'arrival', label: '到着の振り返り' }, // ★2026-11-27 到着予定と実際・1車目の開始からの目安（はじめは「到着の見込み」）
-];
-const ADMIN_ONLY_ITEMS = [
-  { key: 'changeLog', label: '変更履歴' },
-  { key: 'masterAdmin', label: 'マスタ管理' },
-  { key: 'entryQr', label: '入口QR' },
-];
-const CONTACTS_ITEM = { key: 'contacts', label: '連絡先' };
-const LOCATIONS_ITEM = { key: 'locations', label: '池場・搬入先' };
-const TRAVEL_ITEM = { key: 'travel', label: '運行時間' }; // ★2026-11-26 運行時間の目安
 
 export default function NavBar({ screen, onChange }) {
   const { auth, logout } = useAuth();
   const [open, setOpen] = useState(false);
-  let items = ITEMS;
-  if (isTaikyo(auth.role) || auth.role === '運送会社') items = [...items, CONTACTS_ITEM, LOCATIONS_ITEM, TRAVEL_ITEM];
-  if (isTaikyo(auth.role)) items = [...items, ...TAIKYO_ITEMS];
-  if (isAdmin(auth.role)) items = [...items, ...ADMIN_ONLY_ITEMS];
+  const taikyo = isTaikyo(auth.role);
+  const can = {
+    all: true,
+    taikyo,
+    carrier: taikyo || auth.role === '運送会社',
+    admin: isAdmin(auth.role),
+  };
+  const items = MENU.filter((m) => can[m.who]);
 
   function select(key) {
     onChange(key);

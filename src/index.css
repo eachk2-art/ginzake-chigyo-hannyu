@@ -85,7 +85,11 @@ textarea {
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
     /* ★2026-11-26：項目が多いと画面の下で切れるので、メニューの中だけスクロールさせる。
        body に zoom: 1.2 がかかっているため、高さは 100vh ではなく少なめにしておく */
-    max-height: 70vh;
+    /* ★2026-11-28：まだ下が切れたので、画面の高さ（zoom 1.2 で割る）から上のバーの分を引いた高さにする。
+       dvh はスマホのアドレスバーの出入りに合わせて変わる高さ（対応していないブラウザは vh の行を使う） */
+    max-height: calc(100vh / 1.2 - 80px);
+    max-height: calc(100dvh / 1.2 - 80px);
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;

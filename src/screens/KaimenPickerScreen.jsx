@@ -8,7 +8,7 @@ export default function KaimenPickerScreen({ onSelectKaimen, onSelectJoint }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '20px 16px 60px' }}>
-      <h2 style={{ fontSize: 19, fontWeight: 700, marginBottom: 16 }}>予定表</h2>
+      <h2 style={{ fontSize: 19, fontWeight: 700, marginBottom: 16 }}>浜個別予定</h2>
 
       {yokouraIds.length > 0 && (
         <button
