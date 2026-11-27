@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMasters } from '../context/MasterContext';
-import { getArrivalTimes } from '../lib/api';
+import { getArrivalTimes, getArrivalStudies } from '../lib/api';
 import { today, addDays, toDateStr, formatSlashJP } from '../lib/dateUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 import TimeField from '../components/TimeField';
@@ -11,9 +11,11 @@ import { hm, FEW } from '../lib/travel';
 import { SNOW_KINDS } from '../lib/loadingTimes';
 import { ikebaOrderIndex } from '../lib/planUtils';
 import { enrich, lateCounts, LATE_BUCKETS, routeTable, startsByIkeba, clock, lateText, orderLabel } from '../lib/arrival';
+import { computeCorrections, CORR_MIN } from '../lib/arrivalPlan';
 
 /**
- * 到着の見込み（★2026-11-27、太協・管理者）
+ * 到着の振り返り（★2026-11-27、太協・管理者。はじめは「到着の見込み」という名前だった）
+ * 実績は納品完了（完了確認済み）の便だけ。
  * 海面業者は人を頼んで、到着予定の1時間ほど前から待っている。いちばん困るのは「当日になって到着が大きく遅れる」こと。
  *   ・到着予定と実際：連絡した到着予定（前日までに決めていた時刻）と実際の浜到着の差を、天候・除雪で分けて数える
  *   ・当日に到着予定を遅らせた便、30分以上遅れた便の一覧
@@ -39,6 +41,7 @@ export default function ArrivalScreen() {
   const { masters } = useMasters();
   const [period, setPeriod] = useSticky('arrival.period', '365');
   const [rows, setRows] = useState(null);
+  const [studies, setStudies] = useState([]);
   const [error, setError] = useState('');
   const [open, setOpen] = useSticky('arrival.open', () => new Set());
   const [routeKey, setRouteKey] = useSticky('arrival.route', '');
@@ -48,8 +51,13 @@ export default function ArrivalScreen() {
     const days = PERIODS.find((p) => p.key === period)?.days || 365;
     setRows(null);
     setError('');
-    getArrivalTimes(auth, toDateStr(addDays(today(), -days)), toDateStr(today()))
-      .then(setRows)
+    const from = toDateStr(addDays(today(), -days));
+    const to = toDateStr(today());
+    Promise.all([getArrivalTimes(auth, from, to), getArrivalStudies(auth, from, to)])
+      .then(([a, s]) => {
+        setStudies(s || []);
+        setRows(a);
+      })
       .catch((e) => setError(e.message));
   }, [auth, period]);
 
@@ -65,6 +73,7 @@ export default function ArrivalScreen() {
     );
   }, [list, masters]);
   const starts = useMemo(() => startsByIkeba(list), [list]);
+  const corr = useMemo(() => computeCorrections(studies, list), [studies, list]);
 
   const routeName = (ik, pt) => `${pondNameOnly(ikebaBaseName(masters, ik))} → ${deliveryDestName(masters, pt)}`;
   const route = routes.find((r) => r.key === routeKey) || null;
@@ -80,7 +89,7 @@ export default function ArrivalScreen() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '14px 12px 40px' }}>
-      <h2 style={{ fontSize: 19, fontWeight: 700, margin: '0 4px 10px' }}>到着の見込み</h2>
+      <h2 style={{ fontSize: 19, fontWeight: 700, margin: '0 4px 10px' }}>到着の振り返り</h2>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         {PERIODS.map((p) => (
           <button key={p.key} onClick={() => setPeriod(p.key)} style={toggleStyle(period === p.key)}>
@@ -89,7 +98,7 @@ export default function ArrivalScreen() {
         ))}
       </div>
       <div style={{ fontSize: 13, color: 'var(--c-text-3)', margin: '0 4px 12px', lineHeight: 1.6 }}>
-        便（納品先）ごとに、代表の車輌の浜到着時刻で数えます。「連絡した到着予定」は、前日までに入っていた到着予定時刻です
+        納品完了（完了確認済み）の便だけを、代表の車輌の浜到着時刻で数えます。「連絡した到着予定」は、前日までに入っていた到着予定時刻です
         （当日に作った便は最初に入れた時刻）。{FEW}件より少ないものは参考です。
       </div>
 
@@ -198,6 +207,68 @@ export default function ArrivalScreen() {
             {noEta > 0 && <div style={{ fontSize: 12, color: 'var(--c-text-3)', marginTop: 4 }}>到着予定時刻が入っていない便 {noEta}件は数えていません。</div>}
           </Card>
 
+          {/* ---- 検討の見込みと実績（補正） ---- */}
+          <Card title="到着時刻の検討の見込みと実績">
+            <div style={{ fontSize: 13, color: 'var(--c-text-3)', marginBottom: 8, lineHeight: 1.6 }}>
+              保存した「到着時刻の検討」の見込みと実績を、1車目の積込開始から着くまでの時間で比べます（除雪などで開始が遅れた分は差に入りません）。
+              検討のときと車輌・数量・便の順番が同じ便だけを使います。{CORR_MIN}件以上になったルートは、次の検討でこの差を足して計算します。
+            </div>
+            {corr.byRoute.size === 0 ? (
+              <div style={{ fontSize: 14, color: 'var(--c-text-3)' }}>比べられた便はまだありません</div>
+            ) : (
+              <Table
+                head={['ルート', '比べた便', '差（中央値）', '次の検討']}
+                rows={routes
+                  .map((r) => ({ r, c: corr.byRoute.get(r.key) }))
+                  .concat(
+                    Array.from(corr.byRoute.keys())
+                      .filter((k) => !routes.find((r) => r.key === k))
+                      .map((k) => ({ r: { key: k, ikeba: k.split('|')[0], point: k.split('|')[1] }, c: corr.byRoute.get(k) }))
+                  )
+                  .filter((x) => x.c)
+                  .map(({ r, c }) => ({
+                    dim: c.n < CORR_MIN,
+                    cells: [
+                      routeName(r.ikeba, r.point),
+                      `${c.n}件`,
+                      c.median === 0 ? '差なし' : c.median > 0 ? `見込みより${hm(c.median)}遅い` : `見込みより${hm(-c.median)}早い`,
+                      c.n >= CORR_MIN ? `${c.median >= 0 ? '＋' : '−'}${hm(Math.abs(c.median)) || '0分'} 補正する` : `あと${CORR_MIN - c.n}件で補正`,
+                    ],
+                  }))}
+                firstLeft
+              />
+            )}
+          </Card>
+          <ListCard
+            id="studyItems"
+            open={open.has('studyItems')}
+            onToggle={() => toggleInSet(setOpen, 'studyItems')}
+            title={`検討と実績の比べ方（1便ずつ）　${corr.items.length}件`}
+            note="補正に使わなかった便は、その理由を出します。"
+            list={[]}
+            masters={masters}
+            routeName={routeName}
+            custom={
+              <Table
+                head={['日付', 'ルート', '便', '見込み', '実績', '差', '補正に']}
+                rows={[...corr.items]
+                  .sort((a, b) => (a.積込日 < b.積込日 ? 1 : -1))
+                  .map((x) => ({
+                    dim: !x.使う,
+                    cells: [
+                      formatSlashJP(x.積込日),
+                      routeName(x.池場ID, x.配送先ID),
+                      orderLabel(x.順番),
+                      x.見込み分 != null ? hm(x.見込み分) : '—',
+                      x.実績分 != null ? hm(x.実績分) : '—',
+                      x.差 == null ? '—' : x.差 === 0 ? '差なし' : x.差 > 0 ? `実績が${hm(x.差)}遅い` : `実績が${hm(-x.差)}早い`,
+                      x.使う ? '使う' : `使わない（${x.理由}）`,
+                    ],
+                  }))}
+              />
+            }
+          />
+
           <ListCard
             id="shifted"
             open={open.has('shifted')}
@@ -224,7 +295,7 @@ export default function ArrivalScreen() {
   );
 }
 
-function ListCard({ open, onToggle, title, note, list, masters, routeName, showShift }) {
+function ListCard({ open, onToggle, title, note, list, masters, routeName, showShift, custom }) {
   return (
     <div style={{ border: '1px solid var(--c-border)', borderRadius: 12, background: 'var(--c-bg-2)', marginBottom: 12, overflow: 'hidden' }}>
       <button onClick={onToggle} style={headBtn}>
@@ -234,7 +305,9 @@ function ListCard({ open, onToggle, title, note, list, masters, routeName, showS
       {open && (
         <div style={{ padding: '0 14px 12px', borderTop: '1px solid var(--c-border)' }}>
           {note && <div style={{ fontSize: 13, color: 'var(--c-text-3)', margin: '8px 0' }}>{note}</div>}
-          {list.length === 0 ? (
+          {custom ? (
+            <div style={{ marginTop: 8 }}>{custom}</div>
+          ) : list.length === 0 ? (
             <div style={{ fontSize: 14, color: 'var(--c-text-3)', marginTop: 8 }}>ありません</div>
           ) : (
             <div style={{ marginTop: 8 }}>

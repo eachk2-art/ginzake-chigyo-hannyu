@@ -121,6 +121,7 @@ function MainShell() {
           onClose={pop}
           onOpenRun={nav.openRun}
           onOpenPondLog={nav.openPondLog}
+          onOpenArrivalPlan={nav.openArrivalPlan}
           onReplacePlan={(planId) => replaceTop({ screen: 'plan', planId })}
         />
       )}

@@ -12,6 +12,7 @@ import PlanDeliveryForm from '../components/plan/PlanDeliveryForm';
 import PlanEditPanel from '../components/plan/PlanEditPanel';
 import { isAdmin, isTaikyo } from '../lib/roles';
 import { isPlanLocked } from '../lib/planUtils';
+import { useStudyFlags } from '../lib/useStudyFlags';
 
 /**
  * 納品先（搬入予定＝親）の画面（★2026-11-24 親子方式）
@@ -21,7 +22,7 @@ import { isPlanLocked } from '../lib/planUtils';
  *   ・予定の内容：管理者が変更、浜の変更は太協も可
  *   ・中止・取消・完了確認
  */
-export default function PlanScreen({ planId, onClose, onOpenRun, onOpenPondLog, onReplacePlan }) {
+export default function PlanScreen({ planId, onClose, onOpenRun, onOpenPondLog, onOpenArrivalPlan, onReplacePlan }) {
   const { auth } = useAuth();
   const { masters } = useMasters();
   const [data, setData] = useState(null);
@@ -43,6 +44,12 @@ export default function PlanScreen({ planId, onClose, onOpenRun, onOpenPondLog, 
     setData(null);
     load();
   }, [load]);
+
+  // ★2026-11-27 この日・この池場の「到着時刻の検討」（保存してあれば、この便の見込みを出す）
+  const pDate = data?.plan?.['積込日'] || '';
+  const pIkeba = data?.plan?.['池場ID'] || '';
+  const studyFlags = useStudyFlags(auth, pDate, pDate, isTaikyo(auth.role) && !!pDate, version);
+  const studyFlag = studyFlags.get(`${pDate}|${pIkeba}`);
 
   if (error && !data) {
     return (
@@ -86,7 +93,23 @@ export default function PlanScreen({ planId, onClose, onOpenRun, onOpenPondLog, 
             <button style={smallBtnStyle} onClick={() => onOpenPondLog(plan['積込日'], plan['池場ID'])}>
               この日の池場日誌（天候・水温・内水面立会者） ›
             </button>
+            {isTaikyo(auth.role) && onOpenArrivalPlan && (
+              <button style={{ ...smallBtnStyle, marginLeft: 8 }} onClick={() => onOpenArrivalPlan(plan['積込日'], plan['池場ID'])}>
+                この日の到着時刻の検討 ›
+              </button>
+            )}
           </div>
+          {isTaikyo(auth.role) && !plan['浜到着時刻'] && (plan['到着予定時刻'] || studyFlag) && (
+            <div style={{ marginTop: 6, fontSize: 14 }}>
+              到着予定時刻：{plan['到着予定時刻'] || '未入力'}
+              {studyFlag?.['到着']?.[plan['搬入予定ID']] && (
+                <span style={{ color: 'var(--c-text-3)', marginLeft: 8 }}>
+                  （到着の検討 {formatDateTimeJP(studyFlag['保存日時'])} 保存の見込み：{studyFlag['到着'][plan['搬入予定ID']]}
+                  {studyFlag['予定と違う'] ? '・検討後に予定が変わっています' : ''}）
+                </span>
+              )}
+            </div>
+          )}
         </>
       }
       onClose={onClose}

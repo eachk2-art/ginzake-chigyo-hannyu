@@ -33,6 +33,7 @@ export default function IkebaCard({
   onOpenPondLog,
   onOpenBulk,
   onOpenArrivalPlan,
+  studyFlag,
   onMovePlan,
   onMoveAlloc,
   moving,
@@ -102,6 +103,14 @@ export default function IkebaCard({
               </div>
             ) : (
               <div style={{ color: 'var(--c-text-3)' }}>池場日誌：未入力（内水面立会者も未定）</div>
+            )}
+            {taikyo && studyFlag && (
+              <div style={{ marginTop: 4 }}>
+                到着の検討：保存済み
+                {studyFlag['予定と違う'] && (
+                  <span style={{ marginLeft: 8, color: 'var(--c-warn)', fontWeight: 700 }}>検討後に予定が変わりました</span>
+                )}
+              </div>
             )}
             {taikyo && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
@@ -201,6 +210,9 @@ function PlanRow({ plan, idx, count, masters, taikyo, open, onToggle, onOpenPlan
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <StatusBadge status={st} />
+              {/* ★2026-11-27 浜に着いた便は実績、まだの便は到着予定時刻 */}
+              {!inactive && plan['浜到着時刻'] && <span style={{ fontSize: 13, fontWeight: 700 }}>着 {plan['浜到着時刻']}（実績）</span>}
+              {!inactive && !plan['浜到着時刻'] && plan['到着予定時刻'] && <span style={{ fontSize: 13, fontWeight: 700 }}>着 {plan['到着予定時刻']}（予定）</span>}
               {taikyo && !inactive && plan['車輌未定'] && <span style={UNDECIDED_BADGE}>車輌未定</span>}
               {taikyo && !inactive && !plan['車輌未定'] && remain > 0 && (
                 <span style={{ ...UNDECIDED_BADGE, background: 'var(--c-warn)', color: '#2b1d00' }}>
@@ -223,7 +235,7 @@ function PlanRow({ plan, idx, count, masters, taikyo, open, onToggle, onOpenPlan
         <div style={{ background: 'var(--c-bg)' }}>
           <div style={{ padding: '8px 16px 4px 28px', fontSize: 14, color: 'var(--c-text-2)', lineHeight: 1.7 }}>
             {taikyo && <div>予定数量：{kgText(plan['予定数量kg'])}kg（入れ目 {plan['予定入れ目率'] || 0}%）</div>}
-            {plan['到着予定時刻'] && <div>到着予定：{plan['到着予定時刻']}</div>}
+            {plan['浜到着時刻'] ? <div>浜到着：{plan['浜到着時刻']}（実績）</div> : plan['到着予定時刻'] && <div>到着予定：{plan['到着予定時刻']}</div>}
             {origin && <div>元の池：{origin}</div>}
             {seaWitness && <div>海面立会者（予定）：{seaWitness}</div>}
             {st === '中止' && plan['中止理由'] && (

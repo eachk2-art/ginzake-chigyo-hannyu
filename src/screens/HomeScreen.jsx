@@ -8,6 +8,8 @@ import CalendarPopup from '../components/CalendarPopup';
 import IkebaCard from '../components/PlanTree';
 import { useSticky, toggleInSet } from '../lib/sticky';
 import { ikebaOrderIndex } from '../lib/planUtils';
+import { useStudyFlags } from '../lib/useStudyFlags';
+import { isTaikyo } from '../lib/roles';
 
 /**
  * ホーム（★2026-11-24 親子方式）：1日分を「池場（池場日誌） → 親（海面業者・浜） → 車輌」で表示する
@@ -52,6 +54,8 @@ export default function HomeScreen({ nav }) {
   useEffect(() => {
     loadLastUpdated();
   }, [loadLastUpdated]);
+
+  const studyFlags = useStudyFlags(auth, dateStr, dateStr, isTaikyo(auth.role) && !!tree, tree);
 
   const ikebaList = useMemo(() => {
     const day = (tree || []).find((d) => d['日付'] === dateStr);
@@ -124,6 +128,7 @@ export default function HomeScreen({ nav }) {
               onOpenRun={nav.openRun}
               onOpenPondLog={nav.openPondLog}
               onOpenArrivalPlan={nav.openArrivalPlan}
+              studyFlag={studyFlags.get(`${dateStr}|${node['池場ID']}`)}
               onOpenBulk={nav.openBulk}
             />
           ))}

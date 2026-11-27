@@ -195,6 +195,11 @@ export const getTravelTimes = (auth, dateFrom, dateTo) => callAction('getTravelT
 export const getLoadingTimes = (auth, dateFrom, dateTo) => callAction('getLoadingTimes', { dateFrom, dateTo }, auth);
 // 到着の見込み（★2026-11-27、太協・管理者）：便ごとの到着予定・実際の浜到着・1車目の積込開始
 export const getArrivalTimes = (auth, dateFrom, dateTo) => callAction('getArrivalTimes', { dateFrom, dateTo }, auth);
+// 到着時刻の検討の保存（★2026-11-27、太協・管理者）。日付×池場で1件、直すと上書き
+export const getArrivalStudy = (auth, date, ikebaId) => callAction('getArrivalStudy', { date, ikebaId }, auth);
+export const saveArrivalStudy = (auth, date, ikebaId, data) => callAction('saveArrivalStudy', { date, ikebaId, data }, auth);
+export const getArrivalStudyFlags = (auth, dateFrom, dateTo) => callAction('getArrivalStudyFlags', { dateFrom, dateTo }, auth);
+export const getArrivalStudies = (auth, dateFrom, dateTo) => callAction('getArrivalStudies', { dateFrom, dateTo }, auth);
 
 // ---- 集計ダッシュボード（SCR-130、太協・管理者）★2026-11-06 ----
 export const getDashboard = (auth, params) => callAction('getDashboard', params || {}, auth);

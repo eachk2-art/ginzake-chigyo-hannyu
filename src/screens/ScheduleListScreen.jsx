@@ -5,6 +5,7 @@ import { getPlanTree, reorderPlans, reorderAllocations } from '../lib/api';
 import { today, addDays, toDateStr, formatJP, monthRange } from '../lib/dateUtils';
 import { ErrorMsg, LoadingMsg, EmptyMsg } from '../components/UI';
 import IkebaCard from '../components/PlanTree';
+import { useStudyFlags } from '../lib/useStudyFlags';
 import { isTaikyo, isAdmin } from '../lib/roles';
 import { useSticky, toggleInSet } from '../lib/sticky';
 import { ikebaOrderIndex, num, kgText, isInactiveStatus } from '../lib/planUtils';
@@ -43,6 +44,7 @@ export default function ScheduleListScreen({ nav }) {
     setTree(null);
     load();
   }, [load]);
+  const studyFlags = useStudyFlags(auth, dateFrom, dateTo, canCreate && !!tree, tree);
 
   const days = useMemo(() => {
     const idx = ikebaOrderIndex(masters);
@@ -191,6 +193,7 @@ export default function ScheduleListScreen({ nav }) {
                           onOpenRun={nav.openRun}
                           onOpenPondLog={nav.openPondLog}
                           onOpenArrivalPlan={nav.openArrivalPlan}
+                          studyFlag={studyFlags.get(`${d.date}|${node['池場ID']}`)}
                           onOpenBulk={nav.openBulk}
                           onMovePlan={canReorderPlan ? (i, dir) => movePlan(d.date, node, i, dir) : undefined}
                           onMoveAlloc={canReorderAlloc ? moveAlloc : undefined}
