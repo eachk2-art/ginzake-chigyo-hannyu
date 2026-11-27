@@ -25,6 +25,7 @@ import RecordsScreen from './screens/RecordsScreen';
 import TravelScreen from './screens/TravelScreen';
 import LoadingTimesScreen from './screens/LoadingTimesScreen';
 import ArrivalScreen from './screens/ArrivalScreen';
+import ArrivalPlanScreen from './screens/ArrivalPlanScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import EntryQrScreen from './screens/EntryQrScreen';
 import LocationsScreen from './screens/LocationsScreen';
@@ -92,6 +93,7 @@ function MainShell() {
     openPondLog: (date, ikebaId) => taikyo && push({ screen: 'pondLog', date, ikebaId }),
     openBulk: (date, ikebaId) => admin && push({ screen: 'bulk', date, ikebaId }),
     openCreate: (initial) => taikyo && push({ screen: 'create', initial: initial || null }),
+    openArrivalPlan: (date, ikebaId) => taikyo && push({ screen: 'arrivalPlanFrom', date, ikebaId }), // ★2026-11-27
   };
 
   const s = route.screen;
@@ -144,6 +146,10 @@ function MainShell() {
       {s === 'records' && taikyo && <RecordsScreen nav={nav} />}
       {s === 'loadingTimes' && taikyo && <LoadingTimesScreen />}
       {s === 'arrival' && taikyo && <ArrivalScreen />}
+      {s === 'arrivalPlan' && taikyo && <ArrivalPlanScreen />}
+      {s === 'arrivalPlanFrom' && taikyo && (
+        <ArrivalPlanScreen key={`${route.date}|${route.ikebaId}`} initialDate={route.date} initialIkebaId={route.ikebaId} onClose={pop} />
+      )}
       {s === 'contacts' && (taikyo || auth.role === '運送会社') && <ContactsScreen />}
       {s === 'locations' && (taikyo || auth.role === '運送会社') && <LocationsScreen />}
       {s === 'travel' && (taikyo || auth.role === '運送会社') && <TravelScreen />}

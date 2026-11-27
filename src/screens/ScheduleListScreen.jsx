@@ -190,6 +190,7 @@ export default function ScheduleListScreen({ nav }) {
                           onOpenPlan={nav.openPlan}
                           onOpenRun={nav.openRun}
                           onOpenPondLog={nav.openPondLog}
+                          onOpenArrivalPlan={nav.openArrivalPlan}
                           onOpenBulk={nav.openBulk}
                           onMovePlan={canReorderPlan ? (i, dir) => movePlan(d.date, node, i, dir) : undefined}
                           onMoveAlloc={canReorderAlloc ? moveAlloc : undefined}

@@ -123,6 +123,7 @@ export default function HomeScreen({ nav }) {
               onOpenPlan={nav.openPlan}
               onOpenRun={nav.openRun}
               onOpenPondLog={nav.openPondLog}
+              onOpenArrivalPlan={nav.openArrivalPlan}
               onOpenBulk={nav.openBulk}
             />
           ))}

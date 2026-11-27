@@ -16,6 +16,7 @@ const TAIKYO_ITEMS = [
   { key: 'dashboard', label: '集計' },
   { key: 'records', label: '記録' }, // ★2026-11-26 積込・搬入の全記録
   { key: 'loadingTimes', label: '積込時間' }, // ★2026-11-27 積込時間の傾向
+  { key: 'arrivalPlan', label: '到着時刻の検討' }, // ★2026-11-27 便・車輌・数量から到着の見込みを出す
   { key: 'arrival', label: '到着の見込み' }, // ★2026-11-27 到着予定と実際・1車目の開始からの目安
 ];
 const ADMIN_ONLY_ITEMS = [

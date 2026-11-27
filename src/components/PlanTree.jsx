@@ -32,6 +32,7 @@ export default function IkebaCard({
   onOpenRun,
   onOpenPondLog,
   onOpenBulk,
+  onOpenArrivalPlan,
   onMovePlan,
   onMoveAlloc,
   moving,
@@ -107,6 +108,11 @@ export default function IkebaCard({
                 <button style={linkBtnStyle} onClick={() => onOpenPondLog(date, ikebaId)}>
                   池場日誌 ›
                 </button>
+                {onOpenArrivalPlan && (
+                  <button style={linkBtnStyle} onClick={() => onOpenArrivalPlan(date, ikebaId)}>
+                    この日の到着時刻を検討 ›
+                  </button>
+                )}
                 {admin && onOpenBulk && (
                   <button style={linkBtnStyle} onClick={() => onOpenBulk(date, ikebaId)}>
                     まとめて修正・完了確認 ›
