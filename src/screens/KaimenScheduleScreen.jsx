@@ -58,7 +58,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
   // 印刷の間だけタイトルを差し替える（★2026-09-24）
   function handlePrint() {
     const name = kaimen ? kaimen['氏名'] : kaimenId;
-    printWithTitle(`${fileDateStamp(lastUpdated)}更新_${name}_浜個別予定`);
+    printWithTitle(`${fileDateStamp(lastUpdated)}更新_${name}_ギンザケ搬入予定表`);
   }
 
   const lastUpdated = useMemo(() => {
@@ -111,7 +111,7 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)', padding: '20px 16px 60px' }}>
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>浜個別予定</h2>
+        <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>ギンザケ搬入予定表</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={handlePrint} style={btnStyle}>
             印刷する
@@ -136,8 +136,11 @@ export default function KaimenScheduleScreen({ kaimenId, onClose }) {
 
       {!error && allSchedules && (
         <div className="print-area">
+          {/* ★2026-11-28 そのまま印刷して配布するので、表の題名を入れる */}
+          <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 10 }}>ギンザケ搬入予定表</div>
           <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{kaimen ? kaimen['氏名'] : kaimenId} 様</div>
-          <div style={{ fontSize: 14, color: 'var(--c-text-2)', marginBottom: 14 }}>
+          {/* ★2026-11-28 予定の期間は、もう少し大きく太く */}
+          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--c-text)', marginBottom: 14 }}>
             {formatJP(dateFrom)} 〜 {formatJP(dateTo)}
           </div>
           <div
