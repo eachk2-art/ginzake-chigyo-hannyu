@@ -15,6 +15,7 @@ const WEATHER_OPTIONS = ['晴れ', '曇り', '雨', '雪'];
 function formOf(log) {
   return {
     天候: log?.['天候'] || '',
+    除雪: log?.['除雪'] === '1' ? '1' : '',
     気温: log?.['気温'] ?? '',
     水温: log?.['水温'] ?? '',
     溶存酸素: log?.['溶存酸素'] ?? '',
@@ -26,7 +27,7 @@ function formOf(log) {
 
 /**
  * 池場日誌（★2026-11-24 親子方式）：その日のその池場で1件。太協・管理者が入力する。
- * 天候・気温・水温・溶存酸素・内水面立会者（2名まで）。立会者は予定と実績を分けず、当日替われば直す
+ * 天候・除雪あり（★11/27）・気温・水温・溶存酸素・内水面立会者（2名まで）。立会者は予定と実績を分けず、当日替われば直す
  */
 export default function PondLogScreen({ date, ikebaId, onClose, onOpenPlan }) {
   const { auth } = useAuth();
@@ -86,6 +87,10 @@ export default function PondLogScreen({ date, ikebaId, onClose, onOpenPlan }) {
             <div key={formKey}>
               <Field label="天候">
                 <ChoiceRow options={WEATHER_OPTIONS} value={form.天候} disabled={!canEdit} onChange={(v) => set('天候', v)} />
+              </Field>
+              {/* ★2026-11-27 除雪：1車目の積込開始が遅れる日を、積込時間・到着の見込みで分けて見るため */}
+              <Field label="除雪作業">
+                <ChoiceRow options={['除雪あり']} value={form.除雪 === '1' ? '除雪あり' : ''} disabled={!canEdit} onChange={(v) => set('除雪', v ? '1' : '')} />
               </Field>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <Field label="気温（℃）" style={{ flex: 1, minWidth: 110 }}>

@@ -82,11 +82,51 @@ export function buildLoading(runs) {
           span: first !== null && last !== null && last > first ? last - first : null,
           changeMedian: stats(dayChanges)?.median ?? null,
           weather: rows.find((r) => r['天候'])?.['天候'] || '',
+          snow: rows.some((r) => r['除雪']),
+          firstMin: first,
           waterTemp: rows.find((r) => r['池の水温'] !== '')?.['池の水温'] || '',
         };
       })
       .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-    return { ikebaId, bands, perTon: stats(perTon), change: stats(changes), days, runs: list };
+    return { ikebaId, bands, perTon: stats(perTon), change: stats(changes), days, runs: list, start: firstStartSummary(days) };
   });
+}
+
+/** 天候・除雪の区分（1車目の積込開始・到着の見込みで使う） */
+export function snowKind(snow, weather) {
+  if (snow) return '除雪あり';
+  if (weather === '雪') return '雪（除雪なし）';
+  return '雪以外';
+}
+export const SNOW_KINDS = ['雪以外', '雪（除雪なし）', '除雪あり'];
+
+/**
+ * 1車目の積込開始の傾向（★2026-11-27）：その池場のその日の、いちばん早い積込開始
+ * 戻り値：{ all, kinds: [{label, s}], months: [{label, s}], snowDelay } または null
+ *   s は「0時からの分」の中央値など（表示は hmShort で 6:30 の形）
+ *   snowDelay … 除雪ありの日が、雪以外の日より何分遅いか（中央値どうしの差）
+ */
+export function firstStartSummary(days) {
+  const ds = (days || []).filter((d) => d.firstMin !== null && d.firstMin !== undefined);
+  if (ds.length === 0) return null;
+  const kinds = SNOW_KINDS.map((label) => ({ label, s: stats(ds.filter((d) => snowKind(d.snow, d.weather) === label).map((d) => d.firstMin)) })).filter((x) => x.s);
+  const mm = new Map();
+  ds.forEach((d) => {
+    const m = Number(String(d.date).slice(5, 7));
+    if (!mm.has(m)) mm.set(m, []);
+    mm.get(m).push(d.firstMin);
+  });
+  // 季節の流れ（秋→冬→春）に合わせて、9月から並べる
+  const months = Array.from(mm.entries())
+    .sort((a, b) => ((a[0] + 3) % 12) - ((b[0] + 3) % 12))
+    .map(([m, vals]) => ({ label: `${m}月`, s: stats(vals) }));
+  const base = kinds.find((k) => k.label === '雪以外')?.s;
+  const snow = kinds.find((k) => k.label === '除雪あり')?.s;
+  return {
+    all: stats(ds.map((d) => d.firstMin)),
+    kinds,
+    months,
+    snowDelay: base && snow ? snow.median - base.median : null,
+  };
 }

@@ -24,6 +24,7 @@ import ZentaiScreen from './screens/ZentaiScreen';
 import RecordsScreen from './screens/RecordsScreen';
 import TravelScreen from './screens/TravelScreen';
 import LoadingTimesScreen from './screens/LoadingTimesScreen';
+import ArrivalScreen from './screens/ArrivalScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import EntryQrScreen from './screens/EntryQrScreen';
 import LocationsScreen from './screens/LocationsScreen';
@@ -142,6 +143,7 @@ function MainShell() {
       {s === 'zentai' && taikyo && <ZentaiScreen nav={nav} />}
       {s === 'records' && taikyo && <RecordsScreen nav={nav} />}
       {s === 'loadingTimes' && taikyo && <LoadingTimesScreen />}
+      {s === 'arrival' && taikyo && <ArrivalScreen />}
       {s === 'contacts' && (taikyo || auth.role === '運送会社') && <ContactsScreen />}
       {s === 'locations' && (taikyo || auth.role === '運送会社') && <LocationsScreen />}
       {s === 'travel' && (taikyo || auth.role === '運送会社') && <TravelScreen />}

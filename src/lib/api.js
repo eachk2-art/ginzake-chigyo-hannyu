@@ -193,6 +193,8 @@ export const getRecords = (auth, dateFrom, dateTo) => callAction('getRecords', {
 export const getTravelTimes = (auth, dateFrom, dateTo) => callAction('getTravelTimes', { dateFrom, dateTo }, auth);
 // 積込時間の傾向（★2026-11-27、太協・管理者）：運行ごとの積込開始・終了と数量
 export const getLoadingTimes = (auth, dateFrom, dateTo) => callAction('getLoadingTimes', { dateFrom, dateTo }, auth);
+// 到着の見込み（★2026-11-27、太協・管理者）：便ごとの到着予定・実際の浜到着・1車目の積込開始
+export const getArrivalTimes = (auth, dateFrom, dateTo) => callAction('getArrivalTimes', { dateFrom, dateTo }, auth);
 
 // ---- 集計ダッシュボード（SCR-130、太協・管理者）★2026-11-06 ----
 export const getDashboard = (auth, params) => callAction('getDashboard', params || {}, auth);

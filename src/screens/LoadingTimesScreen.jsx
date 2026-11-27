@@ -16,6 +16,7 @@ import { ikebaOrderIndex, kgText } from '../lib/planUtils';
  *   ・数量（250kg単位）ごとの積込時間：中央値・最短・最長・回数
  *   ・車の入替（前の車の積込終了 → 次の車の積込開始）
  *   ・日ごとの流れ：何台・何便・合計何t、最初の積込開始〜最後の積込終了
+ *   ・1車目の積込開始（★11/27）：全体・天候と除雪の区分・月ごと
  * を出す。網寄せ・池替えは記録していないので、その分も含んだ時間になる（配車を考えるときの参考）
  */
 const PERIODS = [
@@ -83,6 +84,8 @@ export default function LoadingTimesScreen() {
                   {g.days.length}日・{g.runs.length}便
                   {g.perTon && `　1tあたり 約${hm(g.perTon.median)}`}
                   {g.change && `　車の入替 約${hm(g.change.median)}`}
+                  {g.start && `　1車目 ${hmShort(g.start.all.median)}ごろ`}
+                  {g.start?.snowDelay > 0 && `（除雪の日 約${hm(g.start.snowDelay)}遅い）`}
                 </div>
               </div>
               <span style={{ color: 'var(--c-text-3)' }}>{open ? '▲' : '▼'}</span>
@@ -112,6 +115,36 @@ export default function LoadingTimesScreen() {
                   </>
                 )}
 
+                {g.start && (
+                  <>
+                    <div style={subTitle}>1車目の積込開始（その日いちばん早い積込開始）</div>
+                    <Table
+                      head={['区分', '目安（中央値）', '早い', '遅い', 'ふだんの幅', '日数']}
+                      rows={[{ label: '全体', s: g.start.all }, ...g.start.kinds].map((k) => ({
+                        dim: k.s.n < FEW,
+                        cells: [k.label, `${hmShort(k.s.median)}ごろ`, hmShort(k.s.min), hmShort(k.s.max), `${hmShort(k.s.q1)}〜${hmShort(k.s.q3)}`, `${k.s.n}日${k.s.n < FEW ? '（参考）' : ''}`],
+                      }))}
+                    />
+                    {g.start.snowDelay !== null && (
+                      <div style={{ fontSize: 13, color: 'var(--c-text-2)', margin: '2px 0 6px' }}>
+                        除雪ありの日は、雪以外の日より {g.start.snowDelay >= 0 ? `約${hm(g.start.snowDelay)}遅い` : `約${hm(-g.start.snowDelay)}早い`}（中央値どうしの差）
+                      </div>
+                    )}
+                    {g.start.months.length > 1 && (
+                      <Table
+                        head={['月', '目安（中央値）', '早い', '遅い', 'ふだんの幅', '日数']}
+                        rows={g.start.months.map((k) => ({
+                          dim: k.s.n < FEW,
+                          cells: [k.label, `${hmShort(k.s.median)}ごろ`, hmShort(k.s.min), hmShort(k.s.max), `${hmShort(k.s.q1)}〜${hmShort(k.s.q3)}`, `${k.s.n}日`],
+                        }))}
+                      />
+                    )}
+                    <div style={{ fontSize: 12, color: 'var(--c-text-3)', margin: '2px 0 4px' }}>
+                      除雪は、池場日誌の「除雪あり」で分けています（入れていない日は、天候が雪なら「雪（除雪なし）」）。
+                    </div>
+                  </>
+                )}
+
                 <div style={subTitle}>日ごとの流れ（新しい順）</div>
                 {g.days.map((d) => {
                   const k = `${g.ikebaId}|${d.date}`;
@@ -126,6 +159,7 @@ export default function LoadingTimesScreen() {
                             {d.first && d.last ? `${d.first}〜${d.last}（${hm(d.span)}）` : '時刻の入力なし'}
                             {d.changeMedian !== null && `　入替 約${hm(d.changeMedian)}`}
                             {d.weather && `　${d.weather}`}
+                            {d.snow && '　除雪あり'}
                             {d.waterTemp !== '' && `　池 ${d.waterTemp}℃`}
                           </span>
                         </div>
