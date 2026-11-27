@@ -191,6 +191,8 @@ export const getRecords = (auth, dateFrom, dateTo) => callAction('getRecords', {
 
 // ---- 運行時間の目安（★2026-11-26、太協・管理者・運送会社。運送会社には池場→浜の時間だけが返る） ----
 export const getTravelTimes = (auth, dateFrom, dateTo) => callAction('getTravelTimes', { dateFrom, dateTo }, auth);
+// 積込時間の傾向（★2026-11-27、太協・管理者）：運行ごとの積込開始・終了と数量
+export const getLoadingTimes = (auth, dateFrom, dateTo) => callAction('getLoadingTimes', { dateFrom, dateTo }, auth);
 
 // ---- 集計ダッシュボード（SCR-130、太協・管理者）★2026-11-06 ----
 export const getDashboard = (auth, params) => callAction('getDashboard', params || {}, auth);
